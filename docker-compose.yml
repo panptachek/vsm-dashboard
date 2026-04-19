@@ -1,0 +1,35 @@
+services:
+  api:
+    build: ./api
+    container_name: vsm_api
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      DB_NAME: works_db_v2
+      DB_USER: ${DB_USER:-works_user}
+      DB_PASSWORD: ${DB_PASSWORD:-changeme}
+      DB_HOST: works_postgres_v2
+      DB_PORT: "5432"
+    ports:
+      - "8090:8090"
+    networks:
+      - vsm
+      - works-system-v2_default
+
+  frontend:
+    build: ./frontend
+    container_name: vsm_frontend
+    restart: unless-stopped
+    ports:
+      - "8083:80"
+    depends_on:
+      - api
+    networks:
+      - vsm
+
+networks:
+  vsm:
+    driver: bridge
+  works-system-v2_default:
+    external: true

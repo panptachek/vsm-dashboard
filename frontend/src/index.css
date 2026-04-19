@@ -1,0 +1,97 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;700&family=Onest:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@theme {
+  --color-bg-primary: #f5f5f5;
+  --color-bg-card: #ffffff;
+  --color-bg-surface: #fafafa;
+  --color-bg-sidebar: #1a1a1a;
+  --color-border: #e5e5e5;
+  --color-accent-red: #dc2626;
+  --color-accent-burg: #7f1d1d;
+  --color-accent-dark: #991b1b;
+  --color-progress-red: #ef4444;
+  --color-progress-amber: #f59e0b;
+  --color-progress-green: #22c55e;
+  --color-text-primary: #171717;
+  --color-text-secondary: #404040;
+  --color-text-muted: #737373;
+  --color-text-on-dark: #ffffff;
+  --font-heading: 'Unbounded', sans-serif;
+  --font-body: 'Onest', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  background: #f5f5f5;
+  color: #171717;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100dvh;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-heading);
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+/* Leaflet — standard light theme */
+.leaflet-container {
+  background: #f5f5f5;
+}
+
+/* Picket label tooltips */
+.picket-label-tooltip {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border: 1px solid #e5e5e5 !important;
+  border-radius: 4px !important;
+  padding: 2px 6px !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+  color: #dc2626 !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+}
+.picket-label-tooltip::before {
+  border-top-color: rgba(255, 255, 255, 0.95) !important;
+}
+
+/* Leaflet tooltip light overrides */
+.leaflet-tooltip {
+  background: #ffffff !important;
+  border: 1px solid #e5e5e5 !important;
+  color: #171717 !important;
+  border-radius: 6px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+}
+.leaflet-tooltip::before {
+  border-top-color: #ffffff !important;
+}
+
+/* Leaflet popup light */
+.leaflet-popup-content-wrapper {
+  background: #ffffff;
+  color: #171717;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+.leaflet-popup-tip {
+  background: #ffffff;
+}
+
+/* Fix leaflet z-index for our controls */
+.leaflet-top.leaflet-left {
+  z-index: 999;
+}
+
+/* Hide Leaflet attribution flag icon */
+.leaflet-attribution-flag {
+  display: none !important;
+}

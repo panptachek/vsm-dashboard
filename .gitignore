@@ -1,0 +1,13 @@
+.env
+node_modules/
+dist/
+__pycache__/
+*.pyc
+.venv/
+api/.venv/
+*.egg-info/
+.DS_Store
+/tmp/
+uploads/
+*.bak
+api/.venv/
