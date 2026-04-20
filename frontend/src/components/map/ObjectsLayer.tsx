@@ -24,23 +24,24 @@ interface ObjectsLayerProps {
 // SVG templates for PERPENDICULAR objects (fixed pixel size, zoom-independent)
 // ---------------------------------------------------------------------------
 
-function svgPipeOverpass(color: string, sw: number = 2.5): string {
-  return `<svg width="30" height="44" viewBox="0 0 30 44" xmlns="http://www.w3.org/2000/svg">
-    <line x1="15" y1="6" x2="15" y2="38" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>
-    <line x1="15" y1="6" x2="7" y2="0" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>
-    <line x1="15" y1="6" x2="23" y2="0" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>
-    <line x1="15" y1="38" x2="7" y2="44" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>
-    <line x1="15" y1="38" x2="23" y2="44" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>
+/** Pipe/Overpass: vertical bar with chevrons on both ends (∨—∧ rotated).
+ * Default orientation: vertical (long axis = Y). Rotate by tangent to match axis. */
+function svgPipeOverpass(color: string, sw: number = 2): string {
+  return `<svg width="12" height="32" viewBox="0 0 12 32" xmlns="http://www.w3.org/2000/svg">
+    <polyline points="2,3 6,6 10,3" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round"/>
+    <line x1="6" y1="6" x2="6" y2="26" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>
+    <polyline points="2,29 6,26 10,29" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>`
 }
 
+/** Intersection: dashed perpendicular line with 'N' letters between dash segments. */
 function svgIntersection(color: string, sw: number): string {
-  return `<svg width="30" height="44" viewBox="0 0 30 44" xmlns="http://www.w3.org/2000/svg">
-    <line x1="15" y1="1" x2="15" y2="12" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>
-    <text x="15" y="20" text-anchor="middle" font-size="8" fill="${color}" font-weight="bold" font-family="sans-serif">N</text>
-    <line x1="15" y1="23" x2="15" y2="31" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>
-    <text x="15" y="38" text-anchor="middle" font-size="8" fill="${color}" font-weight="bold" font-family="sans-serif">N</text>
-    <line x1="15" y1="40" x2="15" y2="44" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>
+  return `<svg width="14" height="36" viewBox="0 0 14 36" xmlns="http://www.w3.org/2000/svg">
+    <line x1="7" y1="1" x2="7" y2="8" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>
+    <text x="7" y="14" text-anchor="middle" font-size="7" fill="${color}" font-weight="700" font-family="Arial,sans-serif">N</text>
+    <line x1="7" y1="16" x2="7" y2="20" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>
+    <text x="7" y="26" text-anchor="middle" font-size="7" fill="${color}" font-weight="700" font-family="Arial,sans-serif">N</text>
+    <line x1="7" y1="28" x2="7" y2="35" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>
   </svg>`
 }
 
@@ -122,10 +123,10 @@ export function ObjectsLayer({ pickets, objects, pileFields, zoom, enabledObject
       if (tc === 'bridge') return null // handled separately
 
       let svg: string, w: number, h: number
-      if (tc === 'pipe') { svg = svgPipeOverpass('#ef6c00'); w = 30; h = 44 }
-      else if (tc === 'overpass') { svg = svgPipeOverpass('#1565c0'); w = 30; h = 44 }
-      else if (tc === 'intersection_fin') { svg = svgIntersection('#8d6e63', 2); w = 30; h = 44 }
-      else if (tc === 'intersection_prop') { svg = svgIntersection('#c62828', 3); w = 30; h = 44 }
+      if (tc === 'pipe') { svg = svgPipeOverpass('#ff7f00', 2); w = 12; h = 32 }
+      else if (tc === 'overpass') { svg = svgPipeOverpass('#05008e', 2); w = 12; h = 32 }
+      else if (tc === 'intersection_fin') { svg = svgIntersection('#00ff00', 1.5); w = 14; h = 36 }
+      else if (tc === 'intersection_prop') { svg = svgIntersection('#ff00ff', 2); w = 14; h = 36 }
       else return null
 
       if (zoom < 13) return null // hide at low zoom
@@ -151,7 +152,7 @@ export function ObjectsLayer({ pickets, objects, pileFields, zoom, enabledObject
         if (axis.length < 2) return null
         const upper = offsetPolylineLatLngs(axis, offset)
         const lower = offsetPolylineLatLngs(axis, -offset)
-        // Whiskers at start end
+        // Bridge whiskers at both ends (outward at 45°)
         const startEnds = getPerpendicularEnds(pickets, obj.pk_start, whiskerOff)
         const endEnds = getPerpendicularEnds(pickets, obj.pk_end!, whiskerOff)
         const whiskers: LatLng[][] = []
@@ -177,20 +178,20 @@ export function ObjectsLayer({ pickets, objects, pileFields, zoom, enabledObject
     return pileFields.map(pf => {
       const axis = buildAxisPoints(pickets, pf.pk_start, pf.pk_end)
       if (axis.length < 2) return null
+      // Outer rectangle: 2 parallel lines along axis (top + bottom edges)
       const upper = offsetPolylineLatLngs(axis, offset)
       const lower = offsetPolylineLatLngs(axis, -offset)
-      // Cap lines at start and end
+      // Two inner dividers parallel to axis (above and below center):
+      // Places them at 1/3 and 2/3 of cross-axis height
+      const innerUpper = offsetPolylineLatLngs(axis, offset / 3)
+      const innerLower = offsetPolylineLatLngs(axis, -offset / 3)
+      // End caps (perpendicular to axis, connecting top edge to bottom edge)
       const startCap = getPerpendicularEnds(pickets, pf.pk_start, offset)
       const endCap = getPerpendicularEnds(pickets, pf.pk_end, offset)
-      // Two cross lines at 1/3 and 2/3
-      const pk1 = pf.pk_start + (pf.pk_end - pf.pk_start) / 3
-      const pk2 = pf.pk_start + (pf.pk_end - pf.pk_start) * 2 / 3
-      const cross1 = getPerpendicularEnds(pickets, pk1, offset)
-      const cross2 = getPerpendicularEnds(pickets, pk2, offset)
-      return { pf, upper, lower, startCap, endCap, cross1, cross2, key: `pf-${pf.id}` }
+      return { pf, upper, lower, innerUpper, innerLower, startCap, endCap, key: `pf-${pf.id}` }
     }).filter(Boolean) as {
-      pf: PileField; upper: LatLng[]; lower: LatLng[]; startCap: LatLng[] | null; endCap: LatLng[] | null
-      cross1: LatLng[] | null; cross2: LatLng[] | null; key: string
+      pf: PileField; upper: LatLng[]; lower: LatLng[]; innerUpper: LatLng[]; innerLower: LatLng[]
+      startCap: LatLng[] | null; endCap: LatLng[] | null; key: string
     }[]
   }, [pileFields, pickets, offset, enabledObjectTypes])
 
@@ -230,16 +231,18 @@ export function ObjectsLayer({ pickets, objects, pileFields, zoom, enabledObject
       ))}
 
       {/* ── Pile fields ── */}
-      {pileData.map(({ pf, upper, lower, startCap, endCap, cross1, cross2, key }) => (
+      {pileData.map(({ pf, upper, lower, innerUpper, innerLower, startCap, endCap, key }) => (
         <span key={key}>
-          <Polyline positions={upper} pathOptions={{ color: '#29b6f6', weight: 1.2 }} interactive={false} />
-          <Polyline positions={lower} pathOptions={{ color: '#29b6f6', weight: 1.2 }} interactive={false} />
-          {startCap && <Polyline positions={startCap} pathOptions={{ color: '#29b6f6', weight: 1.2 }} interactive={false} />}
-          {endCap && <Polyline positions={endCap} pathOptions={{ color: '#29b6f6', weight: 1.2 }} interactive={false} />}
-          {cross1 && <Polyline positions={cross1} pathOptions={{ color: '#29b6f6', weight: 1 }} interactive={false} />}
-          {cross2 && <Polyline positions={cross2} pathOptions={{ color: '#29b6f6', weight: 1 }} interactive={false} />}
+          {/* Outer rectangle: top + bottom + caps */}
+          <Polyline positions={upper} pathOptions={{ color: '#007fff', weight: 1.2 }} interactive={false} />
+          <Polyline positions={lower} pathOptions={{ color: '#007fff', weight: 1.2 }} interactive={false} />
+          {startCap && <Polyline positions={startCap} pathOptions={{ color: '#007fff', weight: 1.2 }} interactive={false} />}
+          {endCap && <Polyline positions={endCap} pathOptions={{ color: '#007fff', weight: 1.2 }} interactive={false} />}
+          {/* Two inner parallel dividers along axis (above + below center) */}
+          <Polyline positions={innerUpper} pathOptions={{ color: '#007fff', weight: 1 }} interactive={false} />
+          <Polyline positions={innerLower} pathOptions={{ color: '#007fff', weight: 1 }} interactive={false} />
           {/* Hit area */}
-          <Polyline positions={upper} pathOptions={{ color: '#29b6f6', weight: 15, opacity: 0 }}
+          <Polyline positions={upper} pathOptions={{ color: '#007fff', weight: 15, opacity: 0 }}
             eventHandlers={{ click: () => handleClick(key) }}>
             <Popup>
               <div style={{ minWidth: 160 }}>

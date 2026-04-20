@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom'
-import { LayoutDashboard, Map, FileText, Train, BarChart3, Truck, Eye, LineChart, Route, MapPin, Layers } from 'lucide-react'
+import { LayoutDashboard, Map, FileText, Train, BarChart3, Truck, Eye, LineChart, Route, MapPin, Layers, TrendingUp } from 'lucide-react'
 
 const NAV = [
   { to: '/', icon: BarChart3, label: 'Аналитика' },
@@ -15,6 +15,9 @@ const WIP_NAV = [
   { to: '/wip/daily-roads', icon: Route, label: 'Суточный / АД (WIP)' },
   { to: '/wip/map', icon: MapPin, label: 'Карта (WIP)' },
   { to: '/wip/secondary', icon: Layers, label: 'Техника / Отчёт (WIP)' },
+  { to: '/wip/overview-v2', icon: Eye, label: 'Обзор v2 (WIP)' },
+  { to: '/wip/analytics-v2', icon: TrendingUp, label: 'Аналитика v2 (WIP)' },
+  { to: '/wip/map-v2', icon: Map, label: 'Карта v2 (WIP)' },
 ]
 
 export function Layout() {
@@ -82,21 +85,21 @@ export function Layout() {
         <Outlet />
       </main>
 
-      {/* Bottom tab bar - mobile */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-border flex justify-around py-2 px-4 z-50">
-        {NAV.map(({ to, icon: Icon, label }) => (
+      {/* Bottom tab bar - mobile (main + WIP v2) */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-border flex justify-around py-2 px-2 z-50 overflow-x-auto">
+        {[...NAV, ...WIP_NAV].map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
             to={to}
             end={to === '/'}
             className={({ isActive }) =>
-              `flex flex-col items-center gap-0.5 text-[10px] transition-colors ${
+              `flex flex-col items-center gap-0.5 text-[9px] transition-colors shrink-0 px-1 ${
                 isActive ? 'text-accent-red' : 'text-text-muted'
               }`
             }
           >
             <Icon className="w-5 h-5" />
-            {label}
+            <span className="whitespace-nowrap">{label}</span>
           </NavLink>
         ))}
       </nav>

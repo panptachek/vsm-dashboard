@@ -84,9 +84,9 @@ const objects = [
   {id:"ПП-14",  kind:"putoprovod", name:"Путепровод ПК2744",          pk:"ПК2744+20",             length: 48, piles:"22/24", status:"в работе", sec:2},
   {id:"ПП-22",  kind:"putoprovod", name:"Путепровод ПК2902",          pk:"ПК2902+40",             length: 56, piles:"28/28", status:"готов",    sec:4},
   {id:"ПП-31",  kind:"putoprovod", name:"Путепровод ПК3055",          pk:"ПК3055+10",             length: 44, piles:"16/22", status:"в работе", sec:6},
-  {id:"ТР-08",  kind:"truba",      name:"Труба d1.5 м",               pk:"ПК2690+20",             length:  18, piles:"—",     status:"готов",    sec:1},
-  {id:"ТР-11",  kind:"truba",      name:"Труба d2 м",                 pk:"ПК2812+40",             length:  22, piles:"—",     status:"в работе", sec:3},
-  {id:"ТР-18",  kind:"truba",      name:"Труба d1.2 м",               pk:"ПК2990+10",             length:  16, piles:"—",     status:"не в работе", sec:5},
+  {id:"ТР-08",  kind:"truba",      name:"Труба ∅1.5 м",               pk:"ПК2690+20",             length:  18, piles:"—",     status:"готов",    sec:1},
+  {id:"ТР-11",  kind:"truba",      name:"Труба ∅2 м",                 pk:"ПК2812+40",             length:  22, piles:"—",     status:"в работе", sec:3},
+  {id:"ТР-18",  kind:"truba",      name:"Труба ∅1.2 м",               pk:"ПК2990+10",             length:  16, piles:"—",     status:"не в работе", sec:5},
   {id:"СП-03",  kind:"pile",       name:"Свайное поле СП-03",         pk:"ПК2756+10 — ПК2758+40", length:230, piles:"412/610", status:"в работе", sec:2},
   {id:"СП-07",  kind:"pile",       name:"Свайное поле СП-07",         pk:"ПК2875+00 — ПК2878+00", length:300, piles:"520/680", status:"в работе", sec:4},
   {id:"СП-11",  kind:"pile",       name:"Свайное поле СП-11",         pk:"ПК3145+20 — ПК3148+60", length:340, piles:"380/720", status:"отставание", sec:7},
@@ -126,6 +126,12 @@ function gantt(sec){
     {task:"Земляное полотно",          start: 48, end: 96, done: 20, status:"warn"},
   ];
 }
+
+const sandSources = [
+  { id:"own",  name:"Собственными силами", short:"Собств.", color:"#1a1a1a" },
+  { id:"alma", name:"ООО \u00abАЛМА\u00bb",          short:"АЛМА",    color:"#dc2626" },
+  { id:"hire", name:"Иные наёмники",       short:"Наёмные", color:"#9ca3af" },
+];
 
 const trendDays = [];
 for (let i=0; i<30; i++){
@@ -171,6 +177,6 @@ function overall(){
 export const MOCK = {
   sections, metrics, quarries, dailyQuarry, tads, objects,
   issues, equipmentMatrix, gantt, trendDays,
-  sandBreakdown, sandTotals,
+  sandSources, sandBreakdown, sandTotals,
   overall: overall()
 };

@@ -16,6 +16,9 @@ const WipAnalytics = lazy(() => import('./pages-wip/analytics.jsx'))
 const WipDailyRoads = lazy(() => import('./pages-wip/daily_roads.jsx'))
 const WipMap = lazy(() => import('./pages-wip/map_drawer.jsx'))
 const WipSecondary = lazy(() => import('./pages-wip/secondary.jsx'))
+const WipOverviewV2 = lazy(() => import('./pages-wip-v2/Overview'))
+const WipAnalyticsV2 = lazy(() => import('./pages-wip-v2/Analytics'))
+const WipMapV2 = lazy(() => import('./pages-wip-v2/Map'))
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -46,6 +49,9 @@ export default function App() {
             <Route path="/wip/daily-roads" element={<Suspense fallback={<WipFallback />}><WipDailyRoads /></Suspense>} />
             <Route path="/wip/map" element={<Suspense fallback={<WipFallback />}><WipMap /></Suspense>} />
             <Route path="/wip/secondary" element={<Suspense fallback={<WipFallback />}><WipSecondary /></Suspense>} />
+            <Route path="/wip/overview-v2" element={<Suspense fallback={<WipFallback />}><WipOverviewV2 /></Suspense>} />
+            <Route path="/wip/analytics-v2" element={<Suspense fallback={<WipFallback />}><WipAnalyticsV2 /></Suspense>} />
+            <Route path="/wip/map-v2" element={<Suspense fallback={<WipFallback />}><WipMapV2 /></Suspense>} />
           </Route>
         </Routes>
       </BrowserRouter>

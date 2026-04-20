@@ -1956,6 +1956,15 @@ def pdf_quarry_report(body: PDFRequest | None = None):
     )
 
 
+# WIP API routes
+try:
+    from wip_routes import router as wip_router
+    from wip_analytics_routes import router as wip_analytics_router
+    app.include_router(wip_analytics_router)
+    app.include_router(wip_router)
+except ImportError:
+    pass
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8090)

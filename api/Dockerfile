@@ -6,6 +6,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 RUN pip install --no-cache-dir fastapi uvicorn psycopg2-binary weasyprint
 COPY main.py .
+COPY wip_routes.py .
+COPY wip_analytics_routes.py .
 COPY pdf/ pdf/
 EXPOSE 8090
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8090"]

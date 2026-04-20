@@ -16,7 +16,7 @@ from weasyprint import HTML
 DB = dict(
     dbname=os.getenv('DB_NAME', 'works_db_v2'),
     user=os.getenv('DB_USER', 'works_user'),
-    password=os.getenv('DB_PASSWORD', '27052775'),
+    password=os.getenv('DB_PASSWORD', 'changeme'),
     host=os.getenv('DB_HOST', '127.0.0.1'),
     port=int(os.getenv('DB_PORT', '5433')),
 )

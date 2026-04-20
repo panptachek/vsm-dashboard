@@ -74,29 +74,26 @@ function getOneSidedTickEnds(
 // ---------------------------------------------------------------------------
 
 function makeKmIcon(pkNum: number, scale: number): L.DivIcon {
-  const circleSize = Math.round(18 * scale)
-  const fontSize = Math.round(12 * scale)
-  const borderW = Math.max(1, Math.round(1.5 * scale))
+  // Per AutoCAD PDF: ~13px red circle (half red / half white), red label next to it
+  const circleSize = Math.round(13 * scale)
+  const fontSize = Math.round(11 * scale)
   return L.divIcon({
     className: '',
-    html: `<div style="display:flex;align-items:center;gap:${Math.round(3 * scale)}px;pointer-events:none">
+    html: `<div style="display:flex;align-items:center;gap:${Math.round(2 * scale)}px;pointer-events:none">
       <div style="
         width:${circleSize}px;height:${circleSize}px;border-radius:50%;
-        background:linear-gradient(to bottom, #dc2626 50%, #ffffff 50%);
-        border:${borderW}px solid #333;
+        background:linear-gradient(to bottom, #ff0000 50%, #ffffff 50%);
+        border:1px solid #ff0000;
         flex-shrink:0;
       "></div>
       <div style="
-        font-family:'JetBrains Mono',monospace;
-        font-size:${fontSize}px;font-weight:700;
-        background:rgba(255,255,255,0.92);
-        border:1px solid #ccc;border-radius:3px;
-        padding:1px ${Math.round(4 * scale)}px;white-space:nowrap;
-        color:#333;
+        font-family:Arial,sans-serif;
+        font-size:${fontSize}px;font-weight:600;
+        color:#ff0000;
+        white-space:nowrap;
       ">${pkNum}</div>
     </div>`,
     iconSize: [0, 0],
-    // Anchor at top-left of icon so it sits just below the leader line end
     iconAnchor: [Math.round(-2 * scale), Math.round(circleSize / 2)],
   })
 }
@@ -266,15 +263,14 @@ export function PicketMarkers({ pickets, zoom, highlightRanges }: PicketMarkersP
               }}
               interactive={false}
             />
-            {/* Leader line from axis to label (dashed #999, 1px) */}
+            {/* Leader line from axis to label (solid red, per AutoCAD PDF) */}
             {leader && (
               <Polyline
                 positions={leader.line}
                 pathOptions={{
-                  color: '#999',
+                  color: '#ff0000',
                   weight: 1,
-                  opacity: 0.5,
-                  dashArray: '3,3',
+                  opacity: 0.9,
                 }}
                 interactive={false}
               />
