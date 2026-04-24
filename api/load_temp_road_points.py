@@ -6,6 +6,7 @@
 Колонка долготы иногда разбита — 2 разных ячейки; нормализуем.
 """
 from __future__ import annotations
+import os
 import re
 import sys
 from uuid import uuid4
@@ -15,7 +16,10 @@ import psycopg2
 from psycopg2.extras import execute_values
 
 XLSX = "/home/aboba/.claude/channels/telegram/inbox/1777021607006-AgADmZ8AAoGWWUs.xlsx"
-DB_DSN = "postgresql://works_user:27052775@127.0.0.1:5433/works_db_v2"
+DB_DSN = os.environ.get(
+    "DB_DSN",
+    "postgresql://works_user:27052775@127.0.0.1:5433/works_db_v2",
+)
 
 # xlsx-код → DB road_code (пробелы / точки → «№» и пробел)
 ROAD_ALIASES = {

@@ -6,8 +6,6 @@ import { lazy, Suspense } from 'react'
 const OverviewFinal = lazy(() => import('./pages-wip-v2/OverviewFinal'))
 const AnalyticsFinal = lazy(() => import('./pages-wip-v2/AnalyticsFinal'))
 const MapV3 = lazy(() => import('./pages-wip-v2/MapV3'))
-// Старая упрощённая карта сохранена как fallback:
-// const MapFinalOld = lazy(() => import('./pages-wip-v2/MapFinal'))
 const MechanizationPage = lazy(() => import('./pages-wip-v2/MechanizationPage'))
 const ReportsPage = lazy(() => import('./pages-wip-v2/ReportsPage'))
 const SettingsPage = lazy(() => import('./pages-wip-v2/SettingsPage'))

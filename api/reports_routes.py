@@ -424,6 +424,9 @@ def _parse_report_text(filename: str, raw_text: str) -> dict[str, Any]:
     }
 
 
+MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50 MB
+
+
 @router.post("/preview")
 async def preview_report(file: UploadFile = File(...)):
     """
@@ -434,7 +437,18 @@ async def preview_report(file: UploadFile = File(...)):
     if not (name.endswith(".txt") or name.endswith(".pdf")):
         raise HTTPException(400, "Поддерживаются только .txt и .pdf")
 
-    blob = await file.read()
+    # Read in chunks with running byte count, reject above 50 MB without buffering the whole file.
+    chunks: list[bytes] = []
+    total = 0
+    while True:
+        chunk = await file.read(1024 * 1024)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > MAX_UPLOAD_SIZE:
+            raise HTTPException(413, f"Файл больше {MAX_UPLOAD_SIZE // (1024 * 1024)} МБ")
+        chunks.append(chunk)
+    blob = b"".join(chunks)
     if not blob:
         raise HTTPException(400, "Пустой файл")
 

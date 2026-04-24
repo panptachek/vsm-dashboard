@@ -1691,62 +1691,6 @@ def mechanization_aggregates(
     }
 
 
-# ── map: equipment by pk + section ──────────────────────────────────────
-
-@router.get("/map/equipment")
-def map_equipment(
-    date_from: Optional[str] = Query(None, alias="from"),
-    date_to: Optional[str] = Query(None, alias="to"),
-    section: Optional[str] = None,
-):
-    """Агрегат техники по участку+типу для слоя карты."""
-    d_from, d_to = _parse_range(date_from, date_to)
-    codes = _expand_sections(section)
-
-    where = ["dr.report_date >= %s", "dr.report_date <= %s"]
-    params: list = [d_from, d_to]
-    if codes:
-        where.append("cs.code = ANY(%s)")
-        params.append(codes)
-
-    rows = query(
-        f"""
-        SELECT cs.code AS sec,
-               reu.equipment_type AS type,
-               COUNT(*)::int AS count,
-               AVG((csv.pk_start + csv.pk_end) / 2)::int AS pk
-        FROM report_equipment_units reu
-        JOIN daily_reports dr ON dr.id = reu.daily_report_id
-        LEFT JOIN construction_sections cs ON cs.id = dr.section_id
-        LEFT JOIN construction_section_versions csv
-          ON csv.section_id = cs.id AND csv.is_current = true
-        WHERE {' AND '.join(where)}
-          AND reu.status = 'working'
-          AND cs.code IS NOT NULL
-        GROUP BY cs.code, reu.equipment_type, csv.pk_start, csv.pk_end
-        """,
-        params,
-    )
-
-    TYPE_MAP = {
-        "самосвал": "dump", "экскаватор": "excav", "бульдозер": "dozer",
-        "автогрейдер": "grader", "каток": "roller", "фр.погрузчик": "loader",
-        "dump_truck": "dump", "excavator": "excav", "bulldozer": "dozer",
-        "autograder": "grader", "roller": "roller", "loader": "loader",
-    }
-    out = [
-        {
-            "pk": int(r["pk"] // 100) if r["pk"] else None,
-            "sec": r["sec"],
-            "type": TYPE_MAP.get((r["type"] or "").lower(), "dozer"),
-            "count": int(r["count"]),
-        }
-        for r in rows
-        if r["pk"] is not None
-    ]
-    return {"from": d_from.isoformat(), "to": d_to.isoformat(), "rows": out}
-
-
 # ── overview: summary-by-section pivot ──────────────────────────────────
 
 @router.get("/overview/table")
