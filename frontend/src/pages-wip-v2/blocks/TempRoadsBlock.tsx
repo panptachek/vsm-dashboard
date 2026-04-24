@@ -236,7 +236,7 @@ export function TempRoadsBlock({ to }: { to: string; view: 'table'|'cards'|'time
     <section className="bg-white border border-border rounded-xl p-5 shadow-sm">
       <div className="flex flex-wrap items-center gap-3 mb-3">
         <Layers className="w-5 h-5 text-text-primary" strokeWidth={2} />
-        <h2 className="font-heading font-bold text-[15px] tracking-wide uppercase text-text-primary">
+        <h2 className="text-base font-semibold text-gray-800 mb-2 font-heading tracking-wide uppercase">
           Схемы отсыпки временных автодорог
         </h2>
         <span className="text-xs text-text-muted">
@@ -305,7 +305,9 @@ function PillChip({ active, onClick, children }: {
     <button
       onClick={onClick}
       className={`px-2.5 py-1 text-[11px] font-medium rounded-md transition ${
-        active ? 'bg-text-primary text-white' : 'bg-bg-surface text-text-muted hover:text-text-primary'
+        active
+          ? 'bg-slate-800 text-white'
+          : 'bg-white text-gray-600 border border-gray-200 hover:text-text-primary'
       }`}
     >
       {children}

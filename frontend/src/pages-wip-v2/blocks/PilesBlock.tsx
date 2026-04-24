@@ -92,7 +92,7 @@ export function PilesBlock({
     <section className="bg-white border border-border rounded-xl p-5 shadow-sm">
       <div className="flex items-center gap-2 mb-4">
         <Columns3 className="w-5 h-5 text-text-primary" strokeWidth={2} />
-        <h2 className="font-heading font-bold text-[15px] tracking-wide uppercase text-text-primary">
+        <h2 className="text-base font-semibold text-gray-800 mb-2 font-heading tracking-wide uppercase">
           Свайные работы
         </h2>
         <span className="text-xs text-text-muted">

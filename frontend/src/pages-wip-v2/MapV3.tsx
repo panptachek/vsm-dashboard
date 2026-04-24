@@ -39,15 +39,21 @@ const ALL_SECTIONS = SECTIONS_UI.flatMap(s => s.codes)
 
 // Для pile_field используем pile_driver.svg (копёр) вместо lucide Anchor.
 // 'temp_road' — псевдо-ключ, не в ObjectTypeKey, обрабатываем отдельно.
-const OBJ_TYPES: { key: ObjectTypeKey | 'temp_road'; label: string; Icon?: LucideIcon; iconSrc?: string }[] = [
-  { key: 'bridge',            label: 'Мосты',                           Icon: Building2 },
-  { key: 'pipe',              label: 'Трубы',                           Icon: Route },
-  { key: 'overpass',          label: 'Путепроводы (ИССО)',              Icon: Waypoints },
-  { key: 'pile_field',        label: 'Свайные поля',                    iconSrc: '/icons/pile_driver.svg' },
-  { key: 'intersection_fin',  label: 'Пересечения (фин.)',              Icon: GitFork },
-  { key: 'intersection_prop', label: 'Пересечения (имущ.)',             Icon: Columns3 },
-  { key: 'temp_road',         label: 'Временные притрассовые дороги',   Icon: Route },
+const OBJ_TYPES: { key: ObjectTypeKey | 'temp_road'; label: string; Icon?: LucideIcon; iconSrc?: string; color: string }[] = [
+  { key: 'bridge',            label: 'Мосты',                           Icon: Building2,                               color: '#1f2937' },
+  { key: 'pipe',              label: 'Трубы',                           Icon: Route,                                    color: '#ff7f00' },
+  { key: 'overpass',          label: 'Путепроводы (ИССО)',              Icon: Waypoints,                                color: '#05008e' },
+  { key: 'pile_field',        label: 'Свайные поля',                    iconSrc: '/icons/pile_driver.svg',              color: '#007fff' },
+  { key: 'intersection_fin',  label: 'Пересечения (фин.)',              Icon: GitFork,                                  color: '#00a84f' },
+  { key: 'intersection_prop', label: 'Пересечения (имущ.)',             Icon: Columns3,                                 color: '#cc00cc' },
+  { key: 'temp_road',         label: 'Временные притрассовые дороги',   Icon: Route,                                    color: '#0891b2' },
 ]
+
+// Лёгкая палитра секций для свотчей в фильтре (совпадает со стилем map highlights).
+const SECTION_SWATCH: Record<string, string> = {
+  '1': '#ef4444', '2': '#f59e0b', '3': '#eab308', '4': '#22c55e',
+  '5': '#06b6d4', '6': '#3b82f6', '7': '#8b5cf6', '8': '#ec4899',
+}
 
 const EQUIP_TYPES: { key: EquipKey; label: string }[] = [
   { key: 'dump_truck', label: 'Самосвал' },
@@ -224,7 +230,11 @@ export default function MapV3() {
                             type="checkbox"
                             checked={checked}
                             onChange={() => toggleSectionUI(codes)}
-                            className="accent-accent-red w-5 h-5"
+                            className="accent-accent-red w-4 h-4"
+                          />
+                          <span
+                            className="w-2.5 h-2.5 rounded-full shrink-0"
+                            style={{ background: SECTION_SWATCH[key] ?? '#9ca3af' }}
                           />
                           <span className="text-sm">{label}</span>
                         </label>
@@ -263,20 +273,24 @@ export default function MapV3() {
                     Объекты
                   </div>
                   <div className="flex flex-col gap-0.5">
-                    {OBJ_TYPES.map(({ key, label, Icon, iconSrc }) => {
+                    {OBJ_TYPES.map(({ key, label, Icon, iconSrc, color }) => {
                       const checked = key === 'temp_road' ? showTempRoads : objTypes.has(key as ObjectTypeKey)
                       return (
-                        <label key={key} className="flex items-center gap-3 cursor-pointer p-3 rounded hover:bg-bg-surface">
+                        <label key={key} className="flex items-center gap-2 cursor-pointer p-1.5 rounded hover:bg-bg-surface">
                           <input
                             type="checkbox"
                             checked={checked}
                             onChange={() => toggleObjType(key)}
-                            className="accent-accent-red w-5 h-5"
+                            className="accent-accent-red w-4 h-4"
+                          />
+                          <span
+                            className="w-2.5 h-2.5 rounded-sm shrink-0"
+                            style={{ background: color }}
                           />
                           {iconSrc
-                            ? <img src={iconSrc} alt="" className="w-6 h-6" />
-                            : Icon && <Icon className="w-5 h-5 text-text-muted" />}
-                          <span className="text-base">{label}</span>
+                            ? <img src={iconSrc} alt="" className="w-4 h-4" />
+                            : Icon && <Icon className="w-4 h-4 text-text-muted" />}
+                          <span className="text-sm">{label}</span>
                         </label>
                       )
                     })}
@@ -290,19 +304,19 @@ export default function MapV3() {
                   </div>
                   <div className="flex flex-col gap-0.5">
                     {EQUIP_TYPES.map((t) => (
-                      <label key={t.key} className="flex items-center gap-3 cursor-pointer p-3 rounded hover:bg-bg-surface">
+                      <label key={t.key} className="flex items-center gap-2 cursor-pointer p-1.5 rounded hover:bg-bg-surface">
                         <input
                           type="checkbox"
                           checked={equipTypes.has(t.key)}
                           onChange={() => toggleEquipType(t.key)}
-                          className="accent-accent-red w-5 h-5"
+                          className="accent-accent-red w-4 h-4"
                         />
                         <img
                           src={`/icons/${t.key}.svg`}
                           alt=""
-                          className="w-6 h-6 opacity-90"
+                          className="w-4 h-4 opacity-90"
                         />
-                        <span className="text-base">{t.label}</span>
+                        <span className="text-sm">{t.label}</span>
                       </label>
                     ))}
                   </div>

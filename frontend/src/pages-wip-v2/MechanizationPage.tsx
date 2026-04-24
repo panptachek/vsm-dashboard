@@ -73,7 +73,9 @@ export default function MechanizationPage() {
             <button key={o}
               onClick={() => setBucket(o)}
               className={`px-2.5 py-1 rounded-md ${
-                bucket === o ? 'bg-text-primary text-white' : 'bg-bg-surface text-text-muted hover:text-text-primary'
+                bucket === o
+                  ? 'bg-slate-800 text-white'
+                  : 'bg-white text-gray-600 border border-gray-200 hover:text-text-primary'
               }`}>
               {o === 'all' ? 'все' : o === 'own' ? 'ЖДС' : o === 'almaz' ? 'АЛМАЗ' : 'наёмные'}
             </button>

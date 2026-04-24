@@ -111,7 +111,7 @@ export function EquipmentBlock({ from, to }: { from: string; to: string; view: s
     <section className="bg-white border border-border rounded-xl p-5 shadow-sm">
       <div className="flex items-center gap-2 mb-5">
         <Truck className="w-5 h-5 text-text-primary" strokeWidth={2} />
-        <h2 className="font-heading font-bold text-[15px] tracking-wide uppercase text-text-primary">
+        <h2 className="text-base font-semibold text-gray-800 mb-2 font-heading tracking-wide uppercase">
           Производительность техники
         </h2>
         <span className="text-xs text-text-muted">
@@ -189,7 +189,7 @@ function SectionCard({ num, row }: { num: number; row: EquipRow | undefined }) {
       </div>
 
       {hover && (
-        <div className={`absolute z-40 top-full mt-1 p-3 bg-[#1a1a1a] text-white rounded-lg shadow-xl text-[11px] leading-snug min-w-[720px] max-w-[920px] ${anchorRight ? 'right-0' : 'left-0'}`}>
+        <div className={`absolute z-40 top-full mt-1 p-3 bg-[#1a1a1a] text-white rounded-lg shadow-xl text-[11px] leading-snug min-w-[560px] max-w-[min(calc(100vw-40px),920px)] lg:min-w-[720px] ${anchorRight ? 'right-0' : 'left-0'}`}>
           <div className="font-semibold mb-1 text-accent-red uppercase tracking-wider">
             {row.equipment_type} · №{num} · {row.percent == null ? '—' : Math.round(row.percent) + '%'}
           </div>

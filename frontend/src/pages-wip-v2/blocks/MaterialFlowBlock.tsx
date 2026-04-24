@@ -149,7 +149,7 @@ export function MaterialFlowBlock({
       {/* Header */}
       <div className="flex flex-wrap items-center gap-3 mb-3">
         <Truck className="w-5 h-5 text-text-primary" strokeWidth={2} />
-        <h2 className="font-heading font-bold text-[15px] tracking-wide uppercase text-text-primary">
+        <h2 className="text-base font-semibold text-gray-800 mb-2 font-heading tracking-wide uppercase">
           Возка (песок, ЩПГС)
         </h2>
         <div className="flex items-center gap-2 text-xs text-text-secondary font-mono">
@@ -174,7 +174,7 @@ export function MaterialFlowBlock({
         <LegendChip color={BUCKET_COLOR.hire} label="Прочие наёмники" />
         <div className="ml-auto flex items-center gap-3 text-text-muted">
           <LegendChip color="#737373" label="песок" />
-          <LegendChip color="#c8a979" label="ЩПГС" />
+          <LegendChip color="#b45309" label="ЩПГС" />
         </div>
       </div>
 
@@ -185,16 +185,16 @@ export function MaterialFlowBlock({
             <tr className="text-text-muted uppercase tracking-wider text-[10px]">
               <th rowSpan={2} className="text-left py-2 pr-4 font-semibold align-bottom">{firstColLabel}</th>
               <th colSpan={3} className="text-center py-2 px-2 font-semibold border-l border-border/60">ПЕСОК, м³</th>
-              <th colSpan={3} className="text-center py-2 px-2 font-semibold border-l border-border/60">ЩПС/ЩПГС, м³</th>
+              <th colSpan={3} className="text-center py-2 px-2 font-semibold border-l border-border/60 bg-amber-50">ЩПС/ЩПГС, м³</th>
               <th rowSpan={2} className="text-right py-2 pl-3 font-semibold min-w-[220px] align-bottom border-l border-border">ИТОГО, м³</th>
             </tr>
             <tr className="text-text-muted uppercase tracking-wider text-[10px]">
               <th className="text-right py-1 px-2 font-normal border-l border-border/60">ЖДС</th>
               <th className="text-right py-1 px-2 font-normal">АЛМАЗ</th>
               <th className="text-right py-1 px-2 font-normal">наём.</th>
-              <th className="text-right py-1 px-2 font-normal border-l border-border/60">ЖДС</th>
-              <th className="text-right py-1 px-2 font-normal">АЛМАЗ</th>
-              <th className="text-right py-1 px-2 font-normal">наём.</th>
+              <th className="text-right py-1 px-2 font-normal border-l border-border/60 bg-amber-50">ЖДС</th>
+              <th className="text-right py-1 px-2 font-normal bg-amber-50">АЛМАЗ</th>
+              <th className="text-right py-1 px-2 font-normal bg-amber-50">наём.</th>
             </tr>
           </thead>
           <tbody>
@@ -211,9 +211,9 @@ export function MaterialFlowBlock({
                 <td className="py-3 px-2 text-right font-mono text-text-secondary border-l border-border/60">{agg.sand_own ? fmt(agg.sand_own) : '—'}</td>
                 <td className="py-3 px-2 text-right font-mono text-text-secondary">{agg.sand_almaz ? fmt(agg.sand_almaz) : '—'}</td>
                 <td className="py-3 px-2 text-right font-mono text-text-secondary">{agg.sand_hire ? fmt(agg.sand_hire) : '—'}</td>
-                <td className="py-3 px-2 text-right font-mono text-text-secondary border-l border-border/60">{agg.shpgs_own ? fmt(agg.shpgs_own) : '—'}</td>
-                <td className="py-3 px-2 text-right font-mono text-text-secondary">{agg.shpgs_almaz ? fmt(agg.shpgs_almaz) : '—'}</td>
-                <td className="py-3 px-2 text-right font-mono text-text-secondary">{agg.shpgs_hire ? fmt(agg.shpgs_hire) : '—'}</td>
+                <td className="py-3 px-2 text-right font-mono text-text-secondary border-l border-border/60 bg-amber-50">{agg.shpgs_own ? fmt(agg.shpgs_own) : '—'}</td>
+                <td className="py-3 px-2 text-right font-mono text-text-secondary bg-amber-50">{agg.shpgs_almaz ? fmt(agg.shpgs_almaz) : '—'}</td>
+                <td className="py-3 px-2 text-right font-mono text-text-secondary bg-amber-50">{agg.shpgs_hire ? fmt(agg.shpgs_hire) : '—'}</td>
                 <td className="py-3 pl-3 min-w-[220px] border-l border-border">
                   <TotalBar agg={agg} maxTotal={maxTotal} />
                 </td>
@@ -239,7 +239,9 @@ function TabChip({ active, onClick, children }: {
     <button
       onClick={onClick}
       className={`px-3 py-1 text-xs font-medium rounded-md transition ${
-        active ? 'bg-text-primary text-white' : 'text-text-muted hover:text-text-primary'
+        active
+          ? 'bg-slate-800 text-white'
+          : 'bg-white text-gray-600 border border-gray-200 hover:text-text-primary'
       }`}
     >
       {children}
@@ -261,7 +263,7 @@ function TotalBar({ agg, maxTotal }: { agg: Agg; maxTotal: number }) {
   // Верхний ряд — split по материалам (песок / ЩПГС)
   const matStack = agg.total > 0 ? [
     { k: 'sand' as const, v: agg.sand, color: '#737373' },
-    { k: 'shpgs' as const, v: agg.shpgs, color: '#c8a979' },
+    { k: 'shpgs' as const, v: agg.shpgs, color: '#b45309' },
   ] : []
   // Нижний ряд — split по силам (ЖДС / АЛМАЗ / Наёмники)
   const laborStack = agg.total > 0 ? [

@@ -33,7 +33,7 @@ export function ProblemsBlock({ to }: { to: string }) {
     <section className="bg-white border-l-4 border-l-accent-red border border-border rounded-xl p-5 shadow-sm">
       <div className="flex items-center gap-2 mb-3">
         <AlertTriangle className="w-5 h-5 text-accent-red" strokeWidth={2.2} />
-        <h2 className="font-heading font-bold text-[15px] tracking-wide uppercase text-accent-red">
+        <h2 className="text-base font-semibold text-accent-red mb-2 font-heading tracking-wide uppercase">
           Проблемные вопросы ({problems.length})
         </h2>
       </div>

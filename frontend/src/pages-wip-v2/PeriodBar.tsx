@@ -68,8 +68,8 @@ export function PeriodBar() {
       onClick={() => setPreset(p)}
       className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
         preset === p
-          ? 'bg-accent-burg text-white'
-          : 'bg-bg-surface text-text-secondary hover:bg-neutral-200'
+          ? 'bg-slate-800 text-white'
+          : 'bg-white text-gray-600 border border-gray-200 hover:bg-neutral-100'
       }`}
     >
       {label}

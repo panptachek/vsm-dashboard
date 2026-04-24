@@ -192,12 +192,12 @@ export function ObjectInfoPopup({ id, type, dateISO, fallbackTitle, fallbackSubt
               ))}
               {data.works_total && (
                 <tr>
-                  <td style={{ ...tdL, fontWeight: 600 }}>Итого по объекту</td>
-                  <td style={{ ...tdR, fontWeight: 600 }}>
+                  <td style={tdTotalL}>Итого по объекту</td>
+                  <td style={tdTotalR}>
                     {data.works_total.project_volume != null ? fmt(data.works_total.project_volume) : '—'}
                   </td>
-                  <td style={{ ...tdR, fontWeight: 600 }}>{fmt(data.works_total.completed_volume)}</td>
-                  <td style={{ ...tdR, fontWeight: 600 }}>
+                  <td style={tdTotalR}>{fmt(data.works_total.completed_volume)}</td>
+                  <td style={tdTotalR}>
                     {data.works_total.completion_pct != null ? `${data.works_total.completion_pct}%` : '—'}
                   </td>
                 </tr>
@@ -268,10 +268,14 @@ const tblStyle: React.CSSProperties = {
   width: '100%',
   borderCollapse: 'collapse',
   fontSize: 11,
+}
+// Текстовая колонка «Работа» — обычный шрифт.
+const tdL: React.CSSProperties = { padding: '2px 4px', borderBottom: '1px solid #eee', color: '#333' }
+// Числовые — моно.
+const tdR: React.CSSProperties = {
+  padding: '2px 4px', borderBottom: '1px solid #eee', textAlign: 'right', whiteSpace: 'nowrap',
   fontFamily: 'ui-monospace, monospace',
 }
-const tdL: React.CSSProperties = { padding: '2px 4px', borderBottom: '1px solid #eee', color: '#333' }
-const tdR: React.CSSProperties = { padding: '2px 4px', borderBottom: '1px solid #eee', textAlign: 'right', whiteSpace: 'nowrap' }
 const thL: React.CSSProperties = {
   padding: '2px 4px', borderBottom: '1px solid #ccc', textAlign: 'left',
   fontSize: 10, color: '#666', fontWeight: 600, textTransform: 'uppercase',
@@ -283,4 +287,14 @@ const thR: React.CSSProperties = {
 const hdr: React.CSSProperties = {
   fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5,
   color: '#888', fontWeight: 700, marginBottom: 2,
+}
+// Итог по объекту — выделенный стиль в духе Excel: двойная отсечка сверху, серый фон, bold.
+const tdTotalL: React.CSSProperties = {
+  padding: '4px', borderTop: '2px solid #333', background: '#f3f4f6',
+  color: '#111', fontWeight: 700,
+}
+const tdTotalR: React.CSSProperties = {
+  padding: '4px', borderTop: '2px solid #333', background: '#f3f4f6',
+  textAlign: 'right', whiteSpace: 'nowrap', fontWeight: 700,
+  fontFamily: 'ui-monospace, monospace',
 }

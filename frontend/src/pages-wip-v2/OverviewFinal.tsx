@@ -101,7 +101,9 @@ function ViewChip({
     <button
       onClick={onClick}
       className={`px-2.5 py-1 text-xs font-medium rounded-md flex items-center gap-1.5 transition ${
-        active ? 'bg-white shadow-sm text-text-primary' : 'text-text-muted hover:text-text-primary'
+        active
+          ? 'bg-slate-800 text-white'
+          : 'bg-white text-gray-600 border border-gray-200 hover:text-text-primary'
       }`}
     >
       <Icon className="w-3.5 h-3.5" />

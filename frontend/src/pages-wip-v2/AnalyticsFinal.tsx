@@ -135,7 +135,7 @@ export default function WipAnalyticsFinal() {
         <div className="bg-bg-card border border-border rounded-xl p-5 shadow-sm">
           <div className="flex items-center gap-2 mb-4">
             <BarChart3 className="w-5 h-5 text-accent-red" />
-            <h2 className="font-heading font-bold text-lg">Показатели по основным работам</h2>
+            <h2 className="text-base font-semibold text-gray-800 mb-2 font-heading">Показатели по основным работам</h2>
             <span className="ml-auto text-xs font-mono text-text-muted">
               факт по суточным отчётам · за период
             </span>
@@ -205,7 +205,7 @@ function CategoryCard({
     return (
       <section className="bg-bg-card border border-border rounded-xl p-5 shadow-sm opacity-75">
         <div className="flex items-center gap-3 mb-3">
-          <h2 className="font-heading font-bold text-lg">{label}</h2>
+          <h2 className="text-base font-semibold text-gray-800 mb-2 font-heading">{label}</h2>
           <code className="text-[10px] bg-bg-surface px-1.5 py-0.5 rounded text-text-muted">{uiKey}</code>
           <span className="ml-auto text-[10px] uppercase tracking-wider text-accent-red">
             TODO: отдельный материал в БД
@@ -235,7 +235,7 @@ function CategoryCard({
   return (
     <section className="bg-bg-card border border-border rounded-xl p-5 shadow-sm">
       <div className="flex items-center gap-3 mb-4">
-        <h2 className="font-heading font-bold text-lg">{label}</h2>
+        <h2 className="text-base font-semibold text-gray-800 mb-2 font-heading">{label}</h2>
         <code className="text-[10px] bg-bg-surface px-1.5 py-0.5 rounded text-text-muted">{uiKey}</code>
         <span className="ml-auto text-[10px] uppercase tracking-wider text-text-muted">
           всего за период
@@ -467,7 +467,7 @@ function QuarryBarChart({ from, to, secFilter }: { from: string; to: string; sec
     <section className="bg-bg-card border border-border rounded-xl p-5 shadow-sm">
       <div className="flex items-center gap-2 mb-4">
         <Truck className="w-5 h-5 text-accent-red" />
-        <h2 className="font-heading font-bold text-lg">Возка с карьеров</h2>
+        <h2 className="text-base font-semibold text-gray-800 mb-2 font-heading">Возка с карьеров</h2>
         <span className="ml-auto text-xs font-mono text-text-muted">
           только карьеры · смены Д + Н · м³ за период
         </span>
@@ -513,7 +513,7 @@ function StockpileBarChart({ from, to, secFilter }: { from: string; to: string; 
     <section className="bg-bg-card border border-border rounded-xl p-5 shadow-sm">
       <div className="flex items-center gap-2 mb-4">
         <Truck className="w-5 h-5 text-accent-red" />
-        <h2 className="font-heading font-bold text-lg">Возка с накопителей</h2>
+        <h2 className="text-base font-semibold text-gray-800 mb-2 font-heading">Возка с накопителей</h2>
         <span className="ml-auto text-xs font-mono text-text-muted">
           STOCKPILE → конструктив · Д + Н · м³
         </span>
@@ -577,7 +577,7 @@ function PilesComposedChart({ from, to, secFilter }: { from: string; to: string;
     <section className="bg-bg-card border border-border rounded-xl p-5 shadow-sm">
       <div className="flex items-center gap-2 mb-4">
         <Columns3 className="w-5 h-5 text-accent-red" />
-        <h2 className="font-heading font-bold text-lg">Забивка свай</h2>
+        <h2 className="text-base font-semibold text-gray-800 mb-2 font-heading">Забивка свай</h2>
         <span className="ml-auto text-xs font-mono text-text-muted">
           % выполнения от плана по участкам
         </span>
@@ -638,7 +638,7 @@ function StockpileBalancesBlock({ to }: { to: string }) {
     <section className="bg-bg-card border border-border rounded-xl p-5 shadow-sm">
       <div className="flex items-center gap-2 mb-4 flex-wrap">
         <BarChart3 className="w-5 h-5 text-accent-red" />
-        <h2 className="font-heading font-bold text-lg">Состояние накопителей по участкам</h2>
+        <h2 className="text-base font-semibold text-gray-800 mb-2 font-heading">Состояние накопителей по участкам</h2>
         <span className="ml-auto text-xs font-mono text-text-muted">
           на {data.effective_date}
         </span>
@@ -710,7 +710,7 @@ function MainVolumesTable({ summary }: { summary: SummaryResponse | undefined })
     <section className="bg-bg-card border border-border rounded-xl p-5 shadow-sm">
       <div className="flex items-center gap-2 mb-4">
         <BarChart3 className="w-5 h-5 text-accent-red" />
-        <h2 className="font-heading font-bold text-lg">Основные объёмы</h2>
+        <h2 className="text-base font-semibold text-gray-800 mb-2 font-heading">Основные объёмы</h2>
         <span className="ml-auto text-xs font-mono text-text-muted">факт работ за период</span>
       </div>
       <div className="overflow-x-auto">

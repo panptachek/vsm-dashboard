@@ -1,4 +1,4 @@
-import { Outlet, NavLink } from 'react-router-dom'
+import { Outlet, NavLink, useLocation } from 'react-router-dom'
 import { LayoutDashboard, Map, BarChart3, Train, Truck, FileText, Settings } from 'lucide-react'
 
 const NAV = [
@@ -11,6 +11,9 @@ const NAV = [
 ]
 
 export function Layout() {
+  const loc = useLocation()
+  // Карта — full-bleed, без max-w. Остальные страницы ограничиваем на широких мониторах.
+  const isMap = loc.pathname.startsWith('/map')
   return (
     <div className="flex min-h-dvh bg-bg-primary">
       <aside className="hidden lg:flex flex-col w-64 bg-bg-sidebar border-r border-neutral-800 p-4">
@@ -46,7 +49,13 @@ export function Layout() {
       </aside>
 
       <main className="flex-1 overflow-auto bg-bg-primary">
-        <Outlet />
+        {isMap ? (
+          <Outlet />
+        ) : (
+          <div className="max-w-[1800px] mx-auto">
+            <Outlet />
+          </div>
+        )}
       </main>
 
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-border flex justify-around py-2 px-2 z-50">
