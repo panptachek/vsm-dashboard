@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">Excavator / Экскаватор icon</title>
+  <desc id="desc">Minimal construction machinery SVG icon: Excavator / Экскаватор.</desc>
+  <style>
+  .main{fill:none;stroke:#111827;stroke-width:8;stroke-linecap:round;stroke-linejoin:round;}
+  .accent{fill:none;stroke:#C91F2E;stroke-width:8;stroke-linecap:round;stroke-linejoin:round;}
+  .soft{fill:#F3F4F6;stroke:#111827;stroke-width:8;stroke-linecap:round;stroke-linejoin:round;}
+</style>
+  
+  <path class="accent" d="M34 184h145"/>
+  <rect class="soft" x="36" y="166" width="148" height="34" rx="17"/>
+  <path class="main" d="M62 200h98"/>
+  <path class="soft" d="M71 116h76c18 0 33 15 33 33v17H58v-37c0-7 6-13 13-13Z"/>
+  <path class="main" d="M104 116v50M147 116l25 50"/>
+  <path class="accent" d="M156 119l37-42 27 22-35 36"/>
+  <path class="accent" d="M220 99l8 47"/>
+  <path class="main" d="M228 146l-28 18 37 11 8-24-17-5Z"/>
+  <path class="main" d="M83 96h41"/>
+
+</svg>

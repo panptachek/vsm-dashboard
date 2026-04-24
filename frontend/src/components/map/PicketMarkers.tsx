@@ -73,28 +73,52 @@ function getOneSidedTickEnds(
 // DivIcon factory for kilometer posts
 // ---------------------------------------------------------------------------
 
-function makeKmIcon(pkNum: number, scale: number): L.DivIcon {
-  // Per AutoCAD PDF: ~13px red circle (half red / half white), red label next to it
-  const circleSize = Math.round(13 * scale)
+/**
+ * Build a kilometer-post icon.
+ *
+ * The red/white half-circle must have its **dividing diameter perpendicular
+ * to the track axis** at the marker point. `axisAngleDeg` is the angle of
+ * the axis tangent in screen-space degrees (0 = east, 90 = south in Leaflet's
+ * screen coords). The linear-gradient line inside a CSS box runs at 180deg
+ * (top→bottom) by default; we rotate the gradient by `axisAngleDeg` so the
+ * split line follows the axis direction, leaving the two halves on opposite
+ * sides of the axis — i.e. the diameter is perpendicular to the axis.
+ */
+function makeKmIcon(pkNum: number, scale: number, axisAngleDeg: number): L.DivIcon {
+  // Красно-белый значок с внутренней диагональю, перпендикулярной касательной
+  // к оси трассы + ножка-leader в 2 диаметра до точки присоединения на оси.
+  const diameter = Math.round(14 * scale)
   const fontSize = Math.round(11 * scale)
+  const leaderPx = diameter * 2            // длина ножки = 2 диаметра
+  // Нормаль к оси в экранных координатах: axis + 90° (смещение вниз-справа от оси).
+  // Ось в скринспейсе: 0° = восток, +90° = юг (y инвертирован у Leaflet).
+  const normalRad = (axisAngleDeg + 90) * Math.PI / 180
+  const dx = leaderPx * Math.cos(normalRad)
+  const dy = leaderPx * Math.sin(normalRad)
+  // Строим icon как контейнер, внутри которого в (0,0) — точка присоединения
+  // (lat/lng), а сам круг смещён на (dx, dy).
+  // Чтобы красно-белая диагональ круга была ⟂ оси, крутим сам div.
+  const CANVAS = Math.max(32, leaderPx + diameter + 32)  // bounding box
+  const cx = CANVAS / 2
+  const cy = CANVAS / 2
   return L.divIcon({
     className: '',
-    html: `<div style="display:flex;align-items:center;gap:${Math.round(2 * scale)}px;pointer-events:none">
-      <div style="
-        width:${circleSize}px;height:${circleSize}px;border-radius:50%;
-        background:linear-gradient(to bottom, #ff0000 50%, #ffffff 50%);
-        border:1px solid #ff0000;
-        flex-shrink:0;
-      "></div>
-      <div style="
-        font-family:Arial,sans-serif;
-        font-size:${fontSize}px;font-weight:600;
-        color:#ff0000;
-        white-space:nowrap;
-      ">${pkNum}</div>
-    </div>`,
-    iconSize: [0, 0],
-    iconAnchor: [Math.round(-2 * scale), Math.round(circleSize / 2)],
+    html: `<svg width="${CANVAS}" height="${CANVAS}" style="overflow:visible;pointer-events:none;position:relative">
+      <!-- leader line: from origin (axis attachment) to circle center -->
+      <line x1="${cx}" y1="${cy}" x2="${cx + dx}" y2="${cy + dy}"
+            stroke="#ff0000" stroke-width="${Math.max(1, Math.round(1.3 * scale))}" />
+      <!-- red/white circle: rotated so diameter ⟂ axis -->
+      <g transform="translate(${cx + dx} ${cy + dy}) rotate(${axisAngleDeg})">
+        <circle r="${diameter / 2}" fill="#ffffff" stroke="#ff0000" stroke-width="1"/>
+        <path d="M 0 ${-diameter / 2} A ${diameter / 2} ${diameter / 2} 0 0 1 0 ${diameter / 2} Z" fill="#ff0000"/>
+      </g>
+      <!-- pk label under circle -->
+      <text x="${cx + dx}" y="${cy + dy + diameter / 2 + fontSize + 2}"
+            text-anchor="middle"
+            font-family="Arial,sans-serif" font-size="${fontSize}" font-weight="600" fill="#ff0000">${pkNum}</text>
+    </svg>`,
+    iconSize: [CANVAS, CANVAS],
+    iconAnchor: [cx, cy],   // точка (cx,cy) на карте = точка присоединения к оси
   })
 }
 
@@ -119,9 +143,9 @@ export function PicketMarkers({ pickets, zoom, highlightRanges }: PicketMarkersP
   // Km post step: every 20 PK at zoom < 9, every 10 PK at zoom >= 9
   const kmStep = zoom < 9 ? 20 : 10
 
-  // Offset for positioning km labels below axis (in degrees)
-  // Leader line length = ~2x the diameter of the km circle icon
-  const kmBelowOffset = halfLen * 2.5
+  // Offset for positioning km labels along the normal to the axis (in degrees).
+  // Leader line length ≈ 2× the diameter of the km circle icon.
+  const kmBelowOffset = halfLen * 3.5
 
   const marks = useMemo<MarkData[]>(() => {
     if (!pickets || pickets.length < 2) return []
@@ -216,14 +240,18 @@ export function PicketMarkers({ pickets, zoom, highlightRanges }: PicketMarkersP
     }).filter(Boolean) as { pk: number; line: [LatLng, LatLng]; belowPos: LatLng }[]
   }, [kmPosts, pickets, kmBelowOffset])
 
-  // Km post icons at below-axis position
+  // Km post icons — orient red/white split perpendicular to the axis.
+  // getTangentAngle returns radians in screen-space convention
+  // (0 = east, +pi/2 = south since y is inverted). Convert to degrees for CSS.
   const kmIcons = useMemo(() => {
     const icons = new Map<number, L.DivIcon>()
     for (const km of kmPosts) {
-      icons.set(km.pk, makeKmIcon(km.pk, scale))
+      const axisRad = getTangentAngle(pickets, km.pk)
+      const axisDeg = (axisRad * 180) / Math.PI
+      icons.set(km.pk, makeKmIcon(km.pk, scale, axisDeg))
     }
     return icons
-  }, [kmPosts, scale])
+  }, [kmPosts, pickets, scale])
 
   // Tick weight
   const tickWeight5 = Math.max(1, Math.round(1.5 * scale))
@@ -263,22 +291,11 @@ export function PicketMarkers({ pickets, zoom, highlightRanges }: PicketMarkersP
               }}
               interactive={false}
             />
-            {/* Leader line from axis to label (solid red, per AutoCAD PDF) */}
-            {leader && (
-              <Polyline
-                positions={leader.line}
-                pathOptions={{
-                  color: '#ff0000',
-                  weight: 1,
-                  opacity: 0.9,
-                }}
-                interactive={false}
-              />
-            )}
-            {/* Label positioned below axis */}
+            {/* DivIcon-SVG сам рисует ножку от (cx,cy)=точка_оси до круга со смещением
+                в 2 диаметра. Маркер якорится в точку оси. */}
             {leader && (
               <Marker
-                position={leader.belowPos}
+                position={getLatLngByPicketage(pickets, mark.pk) ?? leader.belowPos}
                 icon={kmIcons.get(mark.pk)!}
                 interactive={false}
               />

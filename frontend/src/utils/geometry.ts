@@ -18,6 +18,17 @@ export function formatPicketage(value: number): string {
 }
 
 /**
+ * Format an integer PK number (e.g. 3298) into the full picket format
+ * "ПК3298+00.00".
+ */
+export function formatPK(pk: number | null | undefined): string {
+  if (pk == null || !Number.isFinite(pk)) return '—'
+  const major = Math.floor(pk)
+  const minor = (pk - major) * 100
+  return `ПК${major}+${minor.toFixed(2).padStart(5, '0')}`
+}
+
+/**
  * Parse various picketage string formats into a single float:
  *   "PK2640+23.5" | "2640+23.5" | "264023.5" (sheet format) | "2640.0235"
  */

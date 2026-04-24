@@ -1,5 +1,6 @@
+// После миграции 24.04.2026 UCH_3 — единый код (раньше был разбит на UCH_31/UCH_32).
 export const ACTIVE_SECTION_CODES = [
-  'UCH_1', 'UCH_2', 'UCH_31', 'UCH_32', 'UCH_4',
+  'UCH_1', 'UCH_2', 'UCH_3', 'UCH_4',
   'UCH_5', 'UCH_6', 'UCH_7', 'UCH_8',
 ] as const;
 
@@ -17,6 +18,5 @@ export function sectionCodeToUILabel(code: string): string {
 
 /** Для SQL WHERE: список всех кодов участка N */
 export function sectionNumberToCodes(n: number): string[] {
-  if (n === 3) return ['UCH_31', 'UCH_32'];
   return [`UCH_${n}`];
 }

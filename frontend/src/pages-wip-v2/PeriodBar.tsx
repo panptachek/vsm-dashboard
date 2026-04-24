@@ -76,7 +76,7 @@ export function PeriodBar() {
     </button>
   )
   return (
-    <div className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-border px-4 sm:px-6 py-3 flex flex-wrap items-center gap-2">
+    <div className="no-print sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-border px-4 sm:px-6 py-3 flex flex-wrap items-center gap-2">
       <span className="text-xs uppercase tracking-wider text-text-muted mr-2">Период</span>
       {chip('today', 'Сегодня')}
       {chip('week', 'Неделя')}

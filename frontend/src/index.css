@@ -22,6 +22,18 @@
   --font-mono: 'JetBrains Mono', monospace;
 }
 
+/* Адаптивный root font-size для широкоформатных мониторов и телевизоров.
+   Tailwind-классы (text-xs, text-sm, text-base, text-lg, …) считаются в rem,
+   поэтому масштабирование корня автоматически подтягивает все размеры. */
+html {
+  font-size: 16px;
+}
+@media (min-width: 1600px) { html { font-size: 17px; } }
+@media (min-width: 1920px) { html { font-size: 19px; } }
+@media (min-width: 2400px) { html { font-size: 22px; } }
+@media (min-width: 3200px) { html { font-size: 26px; } }
+@media (min-width: 4000px) { html { font-size: 32px; } }
+
 body {
   margin: 0;
   font-family: var(--font-body);
@@ -29,6 +41,33 @@ body {
   color: #171717;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Для элементов с text-[10px] / text-[11px] и подобных — минимальный флор,
+   чтобы на больших экранах они тоже подрастали. Tailwind arbitrary px-size
+   ДО 12px принудительно поднимаем до 12px на экранах ≥1920px. */
+@media (min-width: 1920px) {
+  .text-\[9px\], .text-\[9\.5px\], .text-\[10px\] {
+    font-size: 13px !important;
+    line-height: 1.35;
+  }
+  .text-\[10\.5px\], .text-\[11px\] {
+    font-size: 14px !important;
+    line-height: 1.4;
+  }
+  .text-\[11\.5px\], .text-\[12px\] {
+    font-size: 15px !important;
+    line-height: 1.45;
+  }
+}
+@media (min-width: 2400px) {
+  .text-\[9px\], .text-\[9\.5px\], .text-\[10px\],
+  .text-\[10\.5px\], .text-\[11px\] {
+    font-size: 17px !important;
+  }
+  .text-\[11\.5px\], .text-\[12px\], .text-\[12\.5px\] {
+    font-size: 18px !important;
+  }
 }
 
 #root {
@@ -94,4 +133,110 @@ h1, h2, h3 {
 /* Hide Leaflet attribution flag icon */
 .leaflet-attribution-flag {
   display: none !important;
+}
+
+/* ==========================================================================
+   Print / PDF export (landscape A4)
+   Activated by window.print() from the toolbar "PDF" button.
+   Affects only print media; screen view is untouched.
+   ========================================================================== */
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 1cm;
+    /* Пустые margin-boxes: убирают у браузеров-печатников footer/header
+       (дату печати, URL, заголовок сайта) при условии, что пользователь
+       не принудительно включил «Header and footer» в окне печати. */
+    @top-left   { content: ""; }
+    @top-right  { content: ""; }
+    @top-center { content: ""; }
+    @bottom-left   { content: ""; }
+    @bottom-right  { content: ""; }
+    @bottom-center { content: ""; }
+  }
+
+  /* Preserve colors in print (backgrounds, chart fills, progress bars). */
+  html, body {
+    background: #ffffff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  /* Hide interactive chrome: sidebar, bottom mobile nav, sticky period bar,
+     PDF button itself, view-mode chips, filter select, etc. */
+  .no-print,
+  aside,
+  nav.lg\:hidden,
+  .sticky {
+    display: none !important;
+  }
+
+  /* Force main area to flow naturally on paper. */
+  main {
+    overflow: visible !important;
+    display: block !important;
+  }
+
+  /* Force white backgrounds on themed surfaces. */
+  .bg-bg-primary,
+  .bg-bg-surface,
+  .bg-bg-sidebar {
+    background: #ffffff !important;
+  }
+
+  /* Kill shadows and rounded-lg noise that waste ink. */
+  .shadow-sm,
+  .shadow,
+  .shadow-md,
+  .shadow-lg {
+    box-shadow: none !important;
+  }
+
+  /* Графики/таблицы по возможности не режем — но секции можно, иначе шапка
+     улетает на одну страницу, а содержимое — на другую. */
+  table, .recharts-wrapper, .recharts-responsive-container {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  tr, thead {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  thead { display: table-header-group; }
+
+  /* Секции без принудительного avoid-break — чтобы шапка не уезжала отдельно. */
+  section {
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+
+  /* Expand horizontal-scroll wrappers so tables are fully visible. */
+  .overflow-x-auto,
+  .overflow-auto,
+  .overflow-y-auto {
+    overflow: visible !important;
+  }
+
+  /* Remove bottom padding that exists for mobile nav clearance. */
+  .pb-24 {
+    padding-bottom: 0 !important;
+  }
+
+  /* Убираем крупный вертикальный отступ между секциями в печати. */
+  .space-y-6 > * + * { margin-top: 0.6rem !important; }
+  .space-y-4 > * + * { margin-top: 0.4rem !important; }
+  .p-5 { padding: 0.5rem !important; }
+  .p-6, .sm\:p-6 { padding: 0.5rem !important; }
+
+  /* Заголовок секции не остаётся одиноким в конце страницы. */
+  section > :first-child,
+  section > .flex:first-child,
+  section > h2, section > h3 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  /* Заглушаем title страницы для header-а браузера (если поддерживается). */
+  title { display: none !important; }
 }

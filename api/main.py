@@ -331,6 +331,12 @@ def _init_tables():
         _ensure_parse_tables()
     except Exception:
         pass  # Will fail gracefully if DB is not yet available
+    # Settings tables (equipment_norms_config, work_type_aliases) + seed + in-memory refresh.
+    try:
+        from wip_routes import _init_settings as _wip_init_settings
+        _wip_init_settings()
+    except Exception:
+        pass
 
 
 @app.post("/api/reports/upload")
@@ -1962,6 +1968,18 @@ try:
     from wip_analytics_routes import router as wip_analytics_router
     app.include_router(wip_analytics_router)
     app.include_router(wip_router)
+except ImportError:
+    pass
+
+try:
+    from wip_map_routes import router as wip_map_router
+    app.include_router(wip_map_router)
+except ImportError:
+    pass
+
+try:
+    from reports_routes import router as reports_router
+    app.include_router(reports_router)
 except ImportError:
     pass
 

@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react'
-import { MapContainer, TileLayer, useMapEvents } from 'react-leaflet'
+import { MapContainer, TileLayer, useMap, useMapEvents, LayersControl } from 'react-leaflet'
 import { useQuery } from '@tanstack/react-query'
+import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
 import type { Picket, Section, MapObject, PileField, ObjectTypeKey } from '../../types/geo'
@@ -9,6 +10,8 @@ import { PicketMarkers } from './PicketMarkers'
 import { SectionHighlight } from './SectionHighlight'
 import { ObjectsLayer } from './ObjectsLayer'
 import { MapControls } from './MapControls'
+import { EquipmentLayer, type EquipKey } from './EquipmentLayer'
+import { TempRoadsLayer } from './TempRoadsLayer'
 
 // ---------------------------------------------------------------------------
 // API fetchers
@@ -90,6 +93,21 @@ async function fetchPileFields(): Promise<PileField[]> {
 // Zoom tracker (inner component that uses useMapEvents)
 // ---------------------------------------------------------------------------
 
+/**
+ * Adds a Leaflet zoom control in the top-right corner.
+ * We disable the built-in `zoomControl` on MapContainer and mount this so
+ * the +/- buttons don't collide with the top-left "Фильтр" button.
+ */
+function ZoomControlTopRight() {
+  const map = useMap()
+  useEffect(() => {
+    const ctrl = L.control.zoom({ position: 'topright' })
+    ctrl.addTo(map)
+    return () => { ctrl.remove() }
+  }, [map])
+  return null
+}
+
 function ZoomTracker({ onZoomChange }: { onZoomChange: (z: number) => void }) {
   const map = useMapEvents({
     zoomend: () => {
@@ -111,22 +129,82 @@ function ZoomTracker({ onZoomChange }: { onZoomChange: (z: number) => void }) {
 const DEFAULT_CENTER: [number, number] = [58.14, 33.55]
 const DEFAULT_ZOOM = 9
 
-const TILE_URL =
-  'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
-const TILE_ATTRIBUTION =
-  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+// ---------------------------------------------------------------------------
+// Tile providers
+// ---------------------------------------------------------------------------
+// NOTE: Яндекс-тайлы используют свою проекцию (yandex-map-projection,
+// грубо EPSG:3395 вместо общепринятой EPSG:3857 OpenStreetMap/CartoDB).
+// Чтобы показывать их точно, нужен proj4leaflet + L.Proj.CRS — это ~+100 КБ
+// в бандле и отдельная MapContainer-инстанция под каждую CRS.
+// Мы используем стандартную EPSG:3857, поэтому яндекс-тайлы могут смещаться
+// на ~1–2 км на широте Петербурга. Для обзорной карты это приемлемо;
+// при необходимости точной привязки — переключаться на OSM/CartoDB.
+const TILE_PROVIDERS = {
+  osm: {
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution:
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    subdomains: 'abc',
+    maxZoom: 19,
+  },
+  yandexSat: {
+    url: 'https://sat0{s}.maps.yandex.net/tiles?l=sat&v=3.1080.0&x={x}&y={y}&z={z}',
+    attribution: '&copy; <a href="https://yandex.ru/maps/">Яндекс</a>',
+    subdomains: '1234',
+    maxZoom: 19,
+  },
+  yandexMap: {
+    // core-renderer-tiles — публичный endpoint без версии, всегда свежий.
+    url: 'https://core-renderer-tiles.maps.yandex.net/tiles?l=map&x={x}&y={y}&z={z}&scale=1&lang=ru_RU',
+    attribution: '&copy; <a href="https://yandex.ru/maps/">Яндекс</a>',
+    subdomains: '',
+    maxZoom: 19,
+  },
+  cartoLight: {
+    url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+    attribution:
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    subdomains: 'abcd',
+    maxZoom: 20,
+  },
+} as const
 
 // ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
 
-export function VsmMap() {
+interface VsmMapProps {
+  /** Дата для слоя техники (YYYY-MM-DD). Если не задана — слой скрыт. */
+  equipmentDateISO?: string | null
+  /** Включённые типы техники (ключи canonical). null/undefined — все. */
+  enabledEquipmentTypes?: Set<EquipKey> | null
+  /** Набор section_code (raw) для фильтра; null/undefined — все. */
+  enabledSectionCodes?: Set<string> | null
+  /** Диапазон ПК [min, max] — скрывает маркеры вне диапазона. */
+  pkRange?: [number | null, number | null]
+  /** Внешний override фильтра типов объектов. */
+  objectTypeFilterOverride?: Set<ObjectTypeKey> | null
+  /** Скрыть встроенную плавающую панель MapControls (слева — участки/поиск/объекты). */
+  hideBuiltInControls?: boolean
+  /** Отрисовывать ли слой временных притрассовых дорог. */
+  enableTempRoads?: boolean
+}
+
+export function VsmMap({
+  equipmentDateISO = null,
+  enabledEquipmentTypes = null,
+  enabledSectionCodes = null,
+  pkRange,
+  objectTypeFilterOverride = null,
+  hideBuiltInControls = false,
+  enableTempRoads = true,
+}: VsmMapProps = {}) {
   const [zoom, setZoom] = useState(DEFAULT_ZOOM)
   const [activeSection, setActiveSection] = useState<string | null>(null)
 
   // Object type visibility filters (all enabled by default)
   const ALL_OBJECT_TYPES: ObjectTypeKey[] = ['pipe', 'overpass', 'bridge', 'pile_field', 'intersection_fin', 'intersection_prop']
-  const [enabledObjectTypes, setEnabledObjectTypes] = useState<Set<ObjectTypeKey>>(() => {
+  const [enabledObjectTypesInternal, setEnabledObjectTypesInternal] = useState<Set<ObjectTypeKey>>(() => {
     const params = new URLSearchParams(window.location.search)
     const raw = params.get('objects')
     if (raw) {
@@ -135,6 +213,9 @@ export function VsmMap() {
     }
     return new Set(ALL_OBJECT_TYPES)
   })
+  // Если задан override из родителя — используем его
+  const enabledObjectTypes = objectTypeFilterOverride ?? enabledObjectTypesInternal
+  const setEnabledObjectTypes = setEnabledObjectTypesInternal
 
   const handleToggleObjectType = useCallback((key: ObjectTypeKey) => {
     setEnabledObjectTypes((prev) => {
@@ -220,15 +301,45 @@ export function VsmMap() {
         bounds={bounds ?? undefined}
         boundsOptions={{ padding: [30, 30] }}
         className="w-full h-full"
-        zoomControl={true}
+        zoomControl={false}
         attributionControl={false}
       >
-        <TileLayer
-          url={TILE_URL}
-          attribution={TILE_ATTRIBUTION}
-          maxZoom={19}
-          subdomains="abc"
-        />
+        <ZoomControlTopRight />
+
+        <LayersControl position="bottomright">
+          <LayersControl.BaseLayer checked name="OSM">
+            <TileLayer
+              url={TILE_PROVIDERS.osm.url}
+              attribution={TILE_PROVIDERS.osm.attribution}
+              subdomains={TILE_PROVIDERS.osm.subdomains}
+              maxZoom={TILE_PROVIDERS.osm.maxZoom}
+            />
+          </LayersControl.BaseLayer>
+          <LayersControl.BaseLayer name="Яндекс.Спутник">
+            <TileLayer
+              url={TILE_PROVIDERS.yandexSat.url}
+              attribution={TILE_PROVIDERS.yandexSat.attribution}
+              subdomains={TILE_PROVIDERS.yandexSat.subdomains}
+              maxZoom={TILE_PROVIDERS.yandexSat.maxZoom}
+            />
+          </LayersControl.BaseLayer>
+          <LayersControl.BaseLayer name="Яндекс.Схема">
+            <TileLayer
+              url={TILE_PROVIDERS.yandexMap.url}
+              attribution={TILE_PROVIDERS.yandexMap.attribution}
+              subdomains={TILE_PROVIDERS.yandexMap.subdomains}
+              maxZoom={TILE_PROVIDERS.yandexMap.maxZoom}
+            />
+          </LayersControl.BaseLayer>
+          <LayersControl.BaseLayer name="CartoDB Positron">
+            <TileLayer
+              url={TILE_PROVIDERS.cartoLight.url}
+              attribution={TILE_PROVIDERS.cartoLight.attribution}
+              subdomains={TILE_PROVIDERS.cartoLight.subdomains}
+              maxZoom={TILE_PROVIDERS.cartoLight.maxZoom}
+            />
+          </LayersControl.BaseLayer>
+        </LayersControl>
 
         <ZoomTracker onZoomChange={handleZoomChange} />
 
@@ -266,11 +377,28 @@ export function VsmMap() {
             pileFields={pileFields}
             zoom={zoom}
             enabledObjectTypes={enabledObjectTypes}
+            infoDateISO={equipmentDateISO ?? undefined}
+          />
+        )}
+
+        {/* Временные притрассовые дороги */}
+        <TempRoadsLayer enabled={enableTempRoads} />
+
+        {/* Equipment layer (filter-driven) */}
+        {equipmentDateISO && (
+          <EquipmentLayer
+            dateISO={equipmentDateISO}
+            enabledTypes={enabledEquipmentTypes ?? new Set<EquipKey>([
+              'dump_truck', 'excavator', 'bulldozer', 'motor_grader', 'road_roller', 'pile_driver',
+            ])}
+            enabledSections={enabledSectionCodes}
+            pkMin={pkRange?.[0] ?? null}
+            pkMax={pkRange?.[1] ?? null}
           />
         )}
 
         {/* Controls overlay */}
-        {pickets.length > 0 && sections.length > 0 && (
+        {!hideBuiltInControls && pickets.length > 0 && sections.length > 0 && (
           <MapControls
             pickets={pickets}
             sections={sections}

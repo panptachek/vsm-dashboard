@@ -1,24 +1,16 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Layout } from './components/Layout'
-import { Dashboard } from './pages/Dashboard'
-import { MapPage } from './pages/MapPage'
-import { SectionDetail } from './pages/SectionDetail'
-import { ReportsPage } from './pages/ReportsPage'
-import { ReportUpload } from './pages/ReportUpload'
-import { ReportReview } from './pages/ReportReview'
-import { Analytics } from './pages/Analytics'
-import { DailyQuarryReport } from './pages/DailyQuarryReport'
 import { lazy, Suspense } from 'react'
 
-const WipOverview = lazy(() => import('./pages-wip/overview.jsx'))
-const WipAnalytics = lazy(() => import('./pages-wip/analytics.jsx'))
-const WipDailyRoads = lazy(() => import('./pages-wip/daily_roads.jsx'))
-const WipMap = lazy(() => import('./pages-wip/map_drawer.jsx'))
-const WipSecondary = lazy(() => import('./pages-wip/secondary.jsx'))
-const WipOverviewV2 = lazy(() => import('./pages-wip-v2/Overview'))
-const WipAnalyticsV2 = lazy(() => import('./pages-wip-v2/Analytics'))
-const WipMapV2 = lazy(() => import('./pages-wip-v2/Map'))
+const OverviewFinal = lazy(() => import('./pages-wip-v2/OverviewFinal'))
+const AnalyticsFinal = lazy(() => import('./pages-wip-v2/AnalyticsFinal'))
+const MapV3 = lazy(() => import('./pages-wip-v2/MapV3'))
+// Старая упрощённая карта сохранена как fallback:
+// const MapFinalOld = lazy(() => import('./pages-wip-v2/MapFinal'))
+const MechanizationPage = lazy(() => import('./pages-wip-v2/MechanizationPage'))
+const ReportsPage = lazy(() => import('./pages-wip-v2/ReportsPage'))
+const SettingsPage = lazy(() => import('./pages-wip-v2/SettingsPage'))
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -26,7 +18,7 @@ const queryClient = new QueryClient({
   },
 })
 
-function WipFallback() {
+function Fallback() {
   return <div style={{ padding: 40, textAlign: 'center', color: '#6b6b6b' }}>Загрузка...</div>
 }
 
@@ -36,22 +28,13 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route element={<Layout />}>
-            <Route path="/" element={<Analytics />} />
-            <Route path="/overview" element={<Dashboard />} />
-            <Route path="/map" element={<MapPage />} />
-            <Route path="/sections/:code" element={<SectionDetail />} />
-            <Route path="/reports" element={<ReportsPage />} />
-            <Route path="/daily-quarry-report" element={<DailyQuarryReport />} />
-            <Route path="/reports/upload" element={<ReportUpload />} />
-            <Route path="/reports/:id/review" element={<ReportReview />} />
-            <Route path="/wip/overview" element={<Suspense fallback={<WipFallback />}><WipOverview /></Suspense>} />
-            <Route path="/wip/analytics" element={<Suspense fallback={<WipFallback />}><WipAnalytics /></Suspense>} />
-            <Route path="/wip/daily-roads" element={<Suspense fallback={<WipFallback />}><WipDailyRoads /></Suspense>} />
-            <Route path="/wip/map" element={<Suspense fallback={<WipFallback />}><WipMap /></Suspense>} />
-            <Route path="/wip/secondary" element={<Suspense fallback={<WipFallback />}><WipSecondary /></Suspense>} />
-            <Route path="/wip/overview-v2" element={<Suspense fallback={<WipFallback />}><WipOverviewV2 /></Suspense>} />
-            <Route path="/wip/analytics-v2" element={<Suspense fallback={<WipFallback />}><WipAnalyticsV2 /></Suspense>} />
-            <Route path="/wip/map-v2" element={<Suspense fallback={<WipFallback />}><WipMapV2 /></Suspense>} />
+            <Route path="/" element={<Suspense fallback={<Fallback />}><OverviewFinal /></Suspense>} />
+            <Route path="/map" element={<Suspense fallback={<Fallback />}><MapV3 /></Suspense>} />
+            <Route path="/analytics" element={<Suspense fallback={<Fallback />}><AnalyticsFinal /></Suspense>} />
+            <Route path="/mechanization" element={<Suspense fallback={<Fallback />}><MechanizationPage /></Suspense>} />
+            <Route path="/reports" element={<Suspense fallback={<Fallback />}><ReportsPage /></Suspense>} />
+            <Route path="/settings" element={<Suspense fallback={<Fallback />}><SettingsPage /></Suspense>} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>
       </BrowserRouter>

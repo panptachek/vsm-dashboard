@@ -369,3 +369,136 @@
   width: 100%; display: flex; flex-direction: column-reverse;
   border-radius: 2px 2px 0 0; overflow: hidden; min-height: 2px;
 }
+
+/* ═══════════ FINAL-версия: доп.стили ═══════════ */
+
+/* Group tabs (в карточке) */
+.v2-group-tabs {
+  display: flex; gap: 2px; padding: 2px;
+  background: var(--n-050); border-radius: 6px;
+}
+.v2-group-tabs button {
+  border: 0; background: transparent; padding: 4px 10px;
+  font-size: 11px; font-weight: 500; color: var(--n-600); cursor: pointer;
+  border-radius: 4px;
+}
+.v2-group-tabs button.on {
+  background: #1a1a1a; color: #fff;
+}
+
+.v2-date-input {
+  padding: 4px 8px; font-size: 12px; border: 1px solid var(--n-200);
+  border-radius: 4px; font-family: var(--font-mono);
+}
+
+/* Piles KPI */
+.v2-piles-kpi {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+}
+.v2-piles-cell {
+  padding: 12px 14px; border: 1px solid var(--n-100); border-radius: 8px;
+  background: var(--n-050);
+}
+.v2-piles-lbl {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--n-500); margin-bottom: 6px;
+}
+.v2-piles-big {
+  font-family: var(--font-mono); font-size: 26px; font-weight: 700;
+  color: #7f1d1d; line-height: 1;
+}
+.v2-piles-sub {
+  font-family: var(--font-mono); font-size: 12px; color: var(--n-700);
+  margin: 6px 0 8px;
+}
+.v2-piles-pct { color: var(--n-900); font-weight: 600; }
+
+/* TAD schemes */
+.v2-tad-schemes {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;
+}
+@media (max-width: 1200px) {
+  .v2-tad-schemes { grid-template-columns: 1fr; }
+}
+.v2-tad-scheme {
+  border: 1px solid var(--n-100); border-radius: 8px; padding: 10px 12px;
+  background: #fff; cursor: pointer; transition: all .15s;
+}
+.v2-tad-scheme:hover { border-color: #dc2626; }
+.v2-tad-scheme.active { border-color: #dc2626; background: var(--n-050); }
+.v2-tad-scheme-h {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;
+}
+.v2-tad-name-big { font-size: 13px; font-weight: 700; }
+.v2-tad-pk-small { font-size: 10px; color: var(--n-500); font-family: var(--font-mono); }
+.v2-tad-total-chip {
+  padding: 4px 10px; background: #16a34a; color: #fff;
+  border-radius: 12px; font-family: var(--font-mono); font-size: 13px; font-weight: 700;
+}
+.v2-tad-total-chip span {
+  font-size: 9px; font-weight: 500; margin-left: 4px; opacity: 0.9;
+}
+.v2-tad-scheme-area { margin-top: 4px; }
+.v2-tad-scheme-detail {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+  margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--n-100);
+}
+.v2-kv {
+  display: flex; flex-direction: column; gap: 2px;
+  font-size: 10px; color: var(--n-500);
+}
+.v2-kv b { font-family: var(--font-mono); font-size: 14px; }
+
+/* Note */
+.v2-note {
+  display: flex; align-items: flex-start; gap: 6px;
+  margin-top: 12px; padding: 10px 12px;
+  background: #fef3c7; border-left: 3px solid #f59e0b;
+  border-radius: 4px; font-size: 11px; color: #78350f; line-height: 1.5;
+}
+.v2-note code {
+  background: #fff; padding: 1px 5px; border-radius: 3px;
+  font-family: var(--font-mono); font-size: 10px;
+}
+
+/* Equipment type label */
+.v2-equip-type-label {
+  font-size: 13px; font-weight: 700; color: var(--n-900);
+  text-transform: none; letter-spacing: 0;
+}
+
+/* Total row */
+.v2-total-row {
+  background: var(--n-050); font-weight: 700;
+  border-top: 2px solid var(--n-200);
+}
+.v2-total-row td { padding: 12px 10px !important; }
+
+/* Status pill */
+.v2-status-pill {
+  display: inline-block; padding: 3px 10px;
+  border-radius: 10px; font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.v2-status-pill.good { background: #dcfce7; color: #166534; }
+.v2-status-pill.warn { background: #fef3c7; color: #78350f; }
+.v2-status-pill.bad  { background: #fee2e2; color: #991b1b; }
+
+/* Map equipment markers */
+.v2-equip-marker-wrap { background: transparent !important; border: 0 !important; }
+.v2-equip-marker {
+  position: relative;
+  width: 32px; height: 32px;
+  background: #fff; border: 2px solid #1a1a1a;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,.2);
+}
+.v2-equip-badge {
+  position: absolute; top: -6px; right: -6px;
+  min-width: 18px; height: 18px; padding: 0 4px;
+  border-radius: 9px; background: #1a1a1a; color: #fff;
+  display: grid; place-items: center;
+  font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+  border: 2px solid #fff;
+}

@@ -9,6 +9,7 @@ import {
   formatPicketage,
   offsetPolylineLatLngs,
 } from '../../utils/geometry'
+import { ObjectInfoPopup } from './ObjectInfoPopup'
 
 type LatLng = [number, number]
 
@@ -18,6 +19,16 @@ interface ObjectsLayerProps {
   pileFields: PileField[]
   zoom: number
   enabledObjectTypes: Set<ObjectTypeKey>
+  /** Дата для запросов детальной информации (popup). YYYY-MM-DD. */
+  infoDateISO?: string
+}
+
+function typeToDbCode(t: string): string {
+  const m: Record<string, string> = {
+    pipe: 'PIPE', overpass: 'OVERPASS', bridge: 'BRIDGE',
+    intersection_fin: 'INTERSECTION_FIN', intersection_prop: 'INTERSECTION_PROP',
+  }
+  return m[t] || t.toUpperCase()
 }
 
 // ---------------------------------------------------------------------------
@@ -45,10 +56,13 @@ function svgIntersection(color: string, sw: number): string {
   </svg>`
 }
 
-function makeIcon(svg: string, w: number, h: number, angleDeg: number): L.DivIcon {
+function makeIcon(svg: string, w: number, h: number, angleDeg: number, active: boolean): L.DivIcon {
+  const ring = active
+    ? `filter:drop-shadow(0 0 6px #dc2626) drop-shadow(0 0 10px #dc2626);`
+    : ''
   return L.divIcon({
-    className: '',
-    html: `<div style="transform:rotate(${angleDeg}deg);width:${w}px;height:${h}px;pointer-events:auto;cursor:pointer;">${svg}</div>`,
+    className: active ? 'vsm-obj-active' : '',
+    html: `<div style="transform:rotate(${angleDeg}deg);width:${w}px;height:${h}px;pointer-events:auto;cursor:pointer;${ring}">${svg}</div>`,
     iconSize: [w, h],
     iconAnchor: [w / 2, h / 2],
   })
@@ -103,9 +117,16 @@ function typeToFilter(t: string): ObjectTypeKey | null {
 // Component
 // ---------------------------------------------------------------------------
 
-export function ObjectsLayer({ pickets, objects, pileFields, zoom, enabledObjectTypes }: ObjectsLayerProps) {
-  const [, setSelected] = useState<string | null>(null)
+export function ObjectsLayer({ pickets, objects, pileFields, zoom, enabledObjectTypes, infoDateISO }: ObjectsLayerProps) {
+  // `selected` tracks which object's popup is currently open, so we can apply
+  // a red glow/ring to it. Click toggles; Leaflet popup onClose clears it.
+  const [selected, setSelected] = useState<string | null>(null)
   const handleClick = useCallback((id: string) => setSelected(p => p === id ? null : id), [])
+  const handleClose = useCallback((id: string) => {
+    setSelected((p) => (p === id ? null : p))
+  }, [])
+  const today = new Date().toISOString().slice(0, 10)
+  const dateISO = infoDateISO ?? today
 
   // Cross-axis offset for along-axis objects (bridges, pile fields)
   const offset = useMemo(() => crossOffsetDeg(zoom, 2), [zoom])
@@ -137,9 +158,10 @@ export function ObjectsLayer({ pickets, objects, pileFields, zoom, enabledObject
       const tang = getTangentAngle(pickets, pk)
       // Perpendicular: SVG line is vertical, axis goes horizontal → rotate by tangent
       const deg = tang * 180 / Math.PI
-      return { key: `perp-${obj.id}`, obj, pos: pos as LatLng, icon: makeIcon(svg, w, h, deg) }
+      const key = `perp-${obj.id}`
+      return { key, obj, pos: pos as LatLng, icon: makeIcon(svg, w, h, deg, selected === key) }
     }).filter(Boolean) as { key: string; obj: MapObject; pos: LatLng; icon: L.DivIcon }[]
-  }, [objects, pickets, zoom, enabledObjectTypes])
+  }, [objects, pickets, zoom, enabledObjectTypes, selected])
 
   // ═══════════════════════════════════════════════════════════════════════
   // BRIDGES — two offset polylines along axis + whiskers at ends
@@ -199,61 +221,94 @@ export function ObjectsLayer({ pickets, objects, pileFields, zoom, enabledObject
     <>
       {/* ── Perpendicular objects (pipe, overpass, intersection) ── */}
       {perpMarkers.map(({ key, obj, pos, icon }) => (
-        <Marker key={key} position={pos} icon={icon} eventHandlers={{ click: () => handleClick(key) }}>
+        <Marker
+          key={key}
+          position={pos}
+          icon={icon}
+          eventHandlers={{
+            click: () => handleClick(key),
+            popupclose: () => handleClose(key),
+          }}
+        >
           <Popup>
-            <div style={{ minWidth: 160 }}>
-              <strong>{obj.name}</strong><br />
-              <span style={{ fontSize: 12, color: '#666' }}>{fmtPkRange(obj.pk_start, obj.pk_end)}</span>
-            </div>
+            <ObjectInfoPopup
+              id={String(obj.id)}
+              type={typeToDbCode(obj.type)}
+              dateISO={dateISO}
+              fallbackTitle={obj.name}
+              fallbackSubtitle={fmtPkRange(obj.pk_start, obj.pk_end)}
+            />
           </Popup>
         </Marker>
       ))}
 
       {/* ── Bridges ── */}
-      {bridgeData.map(({ obj, upper, lower, whiskers, key }) => (
-        <span key={key}>
-          <Polyline positions={upper} pathOptions={{ color: '#000', weight: 1.5 }} interactive={false} />
-          <Polyline positions={lower} pathOptions={{ color: '#000', weight: 1.5 }} interactive={false} />
-          {whiskers.map((w, i) => (
-            <Polyline key={`${key}-w${i}`} positions={w} pathOptions={{ color: '#000', weight: 1.2 }} interactive={false} />
-          ))}
-          {/* Invisible hit area */}
-          <Polyline positions={upper} pathOptions={{ color: '#000', weight: 15, opacity: 0 }}
-            eventHandlers={{ click: () => handleClick(key) }}>
-            <Popup>
-              <div style={{ minWidth: 160 }}>
-                <strong>{obj.name}</strong><br />
-                <span style={{ fontSize: 12, color: '#666' }}>Мост · {fmtPkRange(obj.pk_start, obj.pk_end)}</span>
-              </div>
-            </Popup>
-          </Polyline>
-        </span>
-      ))}
+      {bridgeData.map(({ obj, upper, lower, whiskers, key }) => {
+        const isActive = selected === key
+        const lineColor = isActive ? '#dc2626' : '#000'
+        const lineWeight = isActive ? 2.5 : 1.5
+        return (
+          <span key={key}>
+            <Polyline positions={upper} pathOptions={{ color: lineColor, weight: lineWeight }} interactive={false} />
+            <Polyline positions={lower} pathOptions={{ color: lineColor, weight: lineWeight }} interactive={false} />
+            {whiskers.map((w, i) => (
+              <Polyline key={`${key}-w${i}`} positions={w} pathOptions={{ color: lineColor, weight: isActive ? 2 : 1.2 }} interactive={false} />
+            ))}
+            {/* Invisible hit area */}
+            <Polyline positions={upper} pathOptions={{ color: '#000', weight: 15, opacity: 0 }}
+              eventHandlers={{
+                click: () => handleClick(key),
+                popupclose: () => handleClose(key),
+              }}>
+              <Popup>
+                <ObjectInfoPopup
+                  id={String(obj.id)}
+                  type={typeToDbCode(obj.type)}
+                  dateISO={dateISO}
+                  fallbackTitle={obj.name}
+                  fallbackSubtitle={`Мост · ${fmtPkRange(obj.pk_start, obj.pk_end)}`}
+                />
+              </Popup>
+            </Polyline>
+          </span>
+        )
+      })}
 
       {/* ── Pile fields ── */}
-      {pileData.map(({ pf, upper, lower, innerUpper, innerLower, startCap, endCap, key }) => (
-        <span key={key}>
-          {/* Outer rectangle: top + bottom + caps */}
-          <Polyline positions={upper} pathOptions={{ color: '#007fff', weight: 1.2 }} interactive={false} />
-          <Polyline positions={lower} pathOptions={{ color: '#007fff', weight: 1.2 }} interactive={false} />
-          {startCap && <Polyline positions={startCap} pathOptions={{ color: '#007fff', weight: 1.2 }} interactive={false} />}
-          {endCap && <Polyline positions={endCap} pathOptions={{ color: '#007fff', weight: 1.2 }} interactive={false} />}
-          {/* Two inner parallel dividers along axis (above + below center) */}
-          <Polyline positions={innerUpper} pathOptions={{ color: '#007fff', weight: 1 }} interactive={false} />
-          <Polyline positions={innerLower} pathOptions={{ color: '#007fff', weight: 1 }} interactive={false} />
-          {/* Hit area */}
-          <Polyline positions={upper} pathOptions={{ color: '#007fff', weight: 15, opacity: 0 }}
-            eventHandlers={{ click: () => handleClick(key) }}>
-            <Popup>
-              <div style={{ minWidth: 160 }}>
-                <strong>{pf.name || 'Свайное поле'}</strong><br />
-                <span style={{ fontSize: 12, color: '#666' }}>{fmtPkRange(pf.pk_start, pf.pk_end)}</span><br />
-                <span style={{ fontSize: 12 }}>Свай: {pf.piles_count}</span>
-              </div>
-            </Popup>
-          </Polyline>
-        </span>
-      ))}
+      {pileData.map(({ pf, upper, lower, innerUpper, innerLower, startCap, endCap, key }) => {
+        const isActive = selected === key
+        const lineColor = isActive ? '#dc2626' : '#007fff'
+        const outerWeight = isActive ? 2.5 : 1.2
+        const innerWeight = isActive ? 2 : 1
+        return (
+          <span key={key}>
+            {/* Outer rectangle: top + bottom + caps */}
+            <Polyline positions={upper} pathOptions={{ color: lineColor, weight: outerWeight }} interactive={false} />
+            <Polyline positions={lower} pathOptions={{ color: lineColor, weight: outerWeight }} interactive={false} />
+            {startCap && <Polyline positions={startCap} pathOptions={{ color: lineColor, weight: outerWeight }} interactive={false} />}
+            {endCap && <Polyline positions={endCap} pathOptions={{ color: lineColor, weight: outerWeight }} interactive={false} />}
+            {/* Two inner parallel dividers along axis (above + below center) */}
+            <Polyline positions={innerUpper} pathOptions={{ color: lineColor, weight: innerWeight }} interactive={false} />
+            <Polyline positions={innerLower} pathOptions={{ color: lineColor, weight: innerWeight }} interactive={false} />
+            {/* Hit area */}
+            <Polyline positions={upper} pathOptions={{ color: '#007fff', weight: 15, opacity: 0 }}
+              eventHandlers={{
+                click: () => handleClick(key),
+                popupclose: () => handleClose(key),
+              }}>
+              <Popup>
+                <ObjectInfoPopup
+                  id={String(pf.id)}
+                  type="pile_field"
+                  dateISO={dateISO}
+                  fallbackTitle={pf.name || 'Свайное поле'}
+                  fallbackSubtitle={fmtPkRange(pf.pk_start, pf.pk_end)}
+                />
+              </Popup>
+            </Polyline>
+          </span>
+        )
+      })}
     </>
   )
 }
