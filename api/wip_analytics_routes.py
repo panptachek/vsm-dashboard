@@ -749,7 +749,7 @@ def analytics_stockpile_balances(
     """
     # Последняя дата движений в БД
     r = query_one(
-        "SELECT MAX(report_date) AS max_date FROM material_movements WHERE is_demo IS NOT TRUE OR is_demo = true"
+        "SELECT MAX(report_date) AS max_date FROM material_movements WHERE is_demo IS NOT TRUE"
     )
     max_date = r['max_date'] if r else None
     effective_date = None

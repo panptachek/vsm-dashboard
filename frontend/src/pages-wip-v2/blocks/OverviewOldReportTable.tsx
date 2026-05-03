@@ -42,7 +42,7 @@ const CAT_COLORS: Record<string, string> = {
   'stockpile_to_constructive':'bg-purple-50',      // накопитель → конструктив
   'almaz_stockpile':          'bg-blue-50',        // АЛМАЗ накопитель
   'hired':                    'bg-emerald-50',     // наёмный транспорт
-  'shpgs':                    'bg-amber-50',       // ЩПС/ЩПГС
+  'shpgs':                    'bg-cyan-50',        // ЩПС/ЩПГС
   'default':                  'bg-bg-surface/30',
 }
 
@@ -250,7 +250,7 @@ export function OverviewOldReportTable({ to }: { to: string }) {
       <div className="p-3 text-[11px] text-text-muted border-t border-border">
         Источник: <code>material_movements</code> за выбранную дату. Цвета строк:
         жёлтый — карьер→накопитель, оранжевый — карьер→конструктив,
-        фиолетовый — накопитель→конструктив, янтарный — ЩПС/ЩПГС, зелёный — наёмный транспорт.
+        фиолетовый — накопитель→конструктив, голубой — ЩПС/ЩПГС, зелёный — наёмный транспорт.
       </div>
     </section>
   )

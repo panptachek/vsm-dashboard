@@ -77,13 +77,6 @@ export function DailySummaryBlock({ from, to }: { from: string; to: string }) {
   const pctTotal = st.total_length_m > 0
     ? (st.ready_plus_done_m / st.total_length_m * 100) : 0
 
-  // KPI для верхней полосы: пионерка, ЩПГС за день, % готовности (ЩПГС+готово).
-  // «Пионерка» отдельным полем API не возвращается — используем soil_transport.total
-  // как ближайший прокси (работы по пионерской отсыпке обычно = перевозка грунта).
-  const kpiPioneer = s.soil_transport.total
-  const kpiShpgs = s.shpgs_transport.total
-  const kpiPct = pctTotal
-
   return (
     <section className="bg-white border border-border rounded-xl p-5 shadow-sm">
       <div className="flex items-center gap-2 mb-2">
@@ -95,13 +88,11 @@ export function DailySummaryBlock({ from, to }: { from: string; to: string }) {
 
       {/* 3 KPI-карточки сверху */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
-        <KpiBig label="Пионерка" value={`${fmt(kpiPioneer)}`} unit="м³" />
-        <KpiBig label={isSingleDay ? 'ЩПГС за день' : 'ЩПГС за период'} value={`${fmt(kpiShpgs)}`} unit="м³" />
+        <KpiBig label="Пионерка" value="—" />
+        <KpiBig label={isSingleDay ? 'ЩПГС за день' : 'ЩПГС за период'} value="—" />
         <KpiBig
           label="% готовности (ЩПГС+готово)"
-          value={`${kpiPct.toFixed(1)}`}
-          unit="%"
-          colorClass={pctColor(kpiPct)}
+          value="—"
         />
       </div>
 
@@ -217,7 +208,7 @@ function SummaryRow({ label, value, bold }: { label: string; value: string; bold
 }
 
 function KpiBig({ label, value, unit, colorClass }: {
-  label: string; value: string; unit: string; colorClass?: string
+  label: string; value: string; unit?: string; colorClass?: string
 }) {
   return (
     <div className="border border-border rounded-lg p-3 bg-white">
@@ -225,7 +216,7 @@ function KpiBig({ label, value, unit, colorClass }: {
         <span className={`text-3xl font-bold font-heading leading-none ${colorClass ?? 'text-text-primary'}`}>
           {value}
         </span>
-        <span className="text-sm text-text-muted font-mono">{unit}</span>
+        {unit && <span className="text-sm text-text-muted font-mono">{unit}</span>}
       </div>
       <div className="mt-1.5 text-xs text-gray-500 uppercase tracking-wider">
         {label}
