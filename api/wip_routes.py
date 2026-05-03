@@ -1019,6 +1019,25 @@ def _sec_code_to_num(code: Optional[str]) -> Optional[int]:
         return None
 
 
+EQUIPMENT_CATEGORIES = {
+    "dump_truck": {"label": "Самосвалы", "short": "СВ"},
+    "excavator": {"label": "Экскаваторы", "short": "ЭК"},
+    "bulldozer": {"label": "Бульдозеры", "short": "БД"},
+    "other": {"label": "Прочая", "short": "ПР"},
+}
+
+
+def _equipment_category(equipment_type: Optional[str]) -> str:
+    et = (equipment_type or "").strip().lower()
+    if "самосвал" in et or "dump" in et:
+        return "dump_truck"
+    if "экскав" in et or "excav" in et:
+        return "excavator"
+    if "бульд" in et or "dozer" in et:
+        return "bulldozer"
+    return "other"
+
+
 @router.get("/equipment-productivity")
 def equipment_productivity(
     date_from: Optional[str] = Query(None, alias="from"),
@@ -1316,6 +1335,238 @@ def equipment_productivity(
         "from": d_from.isoformat(),
         "to": d_to.isoformat(),
         "rows": out,
+    }
+
+
+@router.get("/overview/equipment-pulse")
+def overview_equipment_pulse(
+    date_from: Optional[str] = Query(None, alias="from"),
+    date_to: Optional[str] = Query(None, alias="to"),
+):
+    """Upper overview infographics: equipment load, downtime, productivity and risks."""
+    d_from, d_to = _parse_range(date_from, date_to)
+    days = max((d_to - d_from).days + 1, 1)
+
+    sections_raw = query(
+        """
+        SELECT code, name, sort_order
+        FROM construction_sections
+        WHERE is_active IS NOT FALSE
+        ORDER BY sort_order NULLS LAST, code
+        """
+    )
+    sections_meta = {
+        r["code"]: {
+            "section_code": r["code"],
+            "label": (r["name"] or r["code"]).replace("Участок ", "Уч. "),
+            "working_total": 0,
+            "idle_total": 0,
+            "productivity": None,
+            "productivity_weight": 0,
+            "categories": {
+                key: {"working": 0, "idle": 0, "productivity": None, "productivity_weight": 0}
+                for key in EQUIPMENT_CATEGORIES
+            },
+        }
+        for r in sections_raw
+    }
+
+    categories = {
+        key: {
+            "key": key,
+            "label": spec["label"],
+            "short": spec["short"],
+            "working": 0,
+            "idle": 0,
+            "productivity": None,
+            "productivity_weight": 0,
+        }
+        for key, spec in EQUIPMENT_CATEGORIES.items()
+    }
+
+    eq_rows = query(
+        """
+        SELECT cs.code AS section_code,
+               reu.equipment_type,
+               COALESCE(reu.status, 'unknown') AS status,
+               COUNT(*)::int AS cnt
+        FROM report_equipment_units reu
+        JOIN daily_reports dr ON dr.id = reu.daily_report_id
+        LEFT JOIN construction_sections cs ON cs.id = dr.section_id
+        WHERE dr.report_date BETWEEN %s AND %s
+          AND reu.is_demo IS NOT TRUE
+        GROUP BY cs.code, reu.equipment_type, reu.status
+        """,
+        [d_from, d_to],
+    )
+
+    for row in eq_rows:
+        section_code = _merge_section(row["section_code"]) or "—"
+        if section_code not in sections_meta:
+            sections_meta[section_code] = {
+                "section_code": section_code,
+                "label": section_code.replace("UCH_", "Уч. "),
+                "working_total": 0,
+                "idle_total": 0,
+                "productivity": None,
+                "productivity_weight": 0,
+                "categories": {
+                    key: {"working": 0, "idle": 0, "productivity": None, "productivity_weight": 0}
+                    for key in EQUIPMENT_CATEGORIES
+                },
+            }
+        cat = _equipment_category(row["equipment_type"])
+        cnt = int(row["cnt"] or 0)
+        is_working = (row["status"] or "").lower() == "working"
+        slot = "working" if is_working else "idle"
+        categories[cat][slot] += cnt
+        sections_meta[section_code][f"{slot}_total"] += cnt
+        sections_meta[section_code]["categories"][cat][slot] += cnt
+
+    productivity_data = equipment_productivity(
+        date_from=d_from.isoformat(),
+        date_to=d_to.isoformat(),
+    )
+    productivity_rows = productivity_data.get("rows", [])
+    overall_weighted = 0.0
+    overall_weight = 0.0
+    for row in productivity_rows:
+        pct = row.get("percent")
+        if pct is None:
+            continue
+        cat = _equipment_category(row.get("equipment_type"))
+        section_code = _merge_section(row.get("section_code")) or "—"
+        weight = max(
+            float(row.get("work_shifts_total") or 0),
+            float(row.get("avg_units") or 0),
+            1.0,
+        )
+        categories[cat]["productivity_weight"] += weight
+        prev = categories[cat]["productivity"]
+        prev_weight = categories[cat]["productivity_weight"] - weight
+        categories[cat]["productivity"] = (
+            round(((prev or 0) * prev_weight + float(pct) * weight) / categories[cat]["productivity_weight"], 1)
+        )
+
+        if section_code not in sections_meta:
+            sections_meta[section_code] = {
+                "section_code": section_code,
+                "label": section_code.replace("UCH_", "Уч. "),
+                "working_total": 0,
+                "idle_total": 0,
+                "productivity": None,
+                "productivity_weight": 0,
+                "categories": {
+                    key: {"working": 0, "idle": 0, "productivity": None, "productivity_weight": 0}
+                    for key in EQUIPMENT_CATEGORIES
+                },
+            }
+        sec = sections_meta[section_code]
+        sec_cat = sec["categories"][cat]
+        prev_cat = sec_cat["productivity"]
+        prev_cat_weight = sec_cat["productivity_weight"]
+        sec_cat["productivity_weight"] += weight
+        sec_cat["productivity"] = round(((prev_cat or 0) * prev_cat_weight + float(pct) * weight) / sec_cat["productivity_weight"], 1)
+
+        prev_sec = sec["productivity"]
+        prev_sec_weight = sec["productivity_weight"]
+        sec["productivity_weight"] += weight
+        sec["productivity"] = round(((prev_sec or 0) * prev_sec_weight + float(pct) * weight) / sec["productivity_weight"], 1)
+        overall_weighted += float(pct) * weight
+        overall_weight += weight
+
+    for cat in categories.values():
+        cat.pop("productivity_weight", None)
+    sections = []
+    for sec in sections_meta.values():
+        sec.pop("productivity_weight", None)
+        for cat in sec["categories"].values():
+            cat.pop("productivity_weight", None)
+        sections.append(sec)
+
+    totals = {
+        "working": sum(c["working"] for c in categories.values()),
+        "idle": sum(c["idle"] for c in categories.values()),
+        "productivity": round(overall_weighted / overall_weight, 1) if overall_weight else None,
+    }
+
+    pile_row = query_one(
+        """
+        SELECT COALESCE(SUM(dwi.volume), 0)::numeric AS piles
+        FROM daily_work_items dwi
+        JOIN work_types wt ON wt.id = dwi.work_type_id
+        WHERE dwi.report_date BETWEEN %s AND %s
+          AND dwi.is_demo IS NOT TRUE
+          AND wt.code IN ('PILE_MAIN', 'PILE_TRIAL')
+        """,
+        [d_from, d_to],
+    )
+    piles_done = float(pile_row["piles"] or 0) if pile_row else 0.0
+    pile_threshold = 20 * days
+
+    road_row = query_one(
+        """
+        SELECT COALESCE(SUM(
+          ABS(
+            COALESCE(s.road_pk_end, s.rail_pk_end, 0)
+            - COALESCE(s.road_pk_start, s.rail_pk_start, 0)
+          )
+        ), 0)::numeric AS meters
+        FROM temporary_road_status_segments s
+        WHERE s.status_date BETWEEN %s AND %s
+          AND s.is_demo IS NOT TRUE
+          AND s.status_type IN ('pioneer_fill', 'ready_for_shpgs', 'shpgs_done')
+        """,
+        [d_from, d_to],
+    )
+    road_meters = float(road_row["meters"] or 0) if road_row else 0.0
+    road_threshold = 100 * days
+
+    insights = []
+    if totals["working"] == 0:
+        insights.append({
+            "severity": "high",
+            "title": "Нет подтвержденной техники в работе",
+            "text": "За выбранный период в отчетах нет работающих единиц техники. Проверь загрузку суточных отчетов или выбранный период.",
+        })
+    if totals["idle"] >= 3 and totals["idle"] > totals["working"] * 0.25:
+        insights.append({
+            "severity": "medium",
+            "title": "Высокий простой техники",
+            "text": f"В простое {totals['idle']} ед. против {totals['working']} ед. в работе. Стоит проверить причины standby/ремонта.",
+        })
+    if totals["productivity"] is not None and totals["productivity"] < 60:
+        insights.append({
+            "severity": "high",
+            "title": "Низкая производительность",
+            "text": f"Средняя производительность {totals['productivity']}% от норматива. Риск недобора суточного темпа.",
+        })
+    if piles_done < pile_threshold:
+        insights.append({
+            "severity": "medium",
+            "title": "Риск по свайным работам",
+            "text": f"Забито {int(round(piles_done))} свай при ориентире {pile_threshold} шт за период.",
+        })
+    if road_meters < road_threshold:
+        insights.append({
+            "severity": "medium",
+            "title": "Риск по временным автодорогам",
+            "text": f"Зафиксировано {int(round(road_meters))} м новых/готовых сегментов при ориентире {road_threshold} м.",
+        })
+
+    return {
+        "from": d_from.isoformat(),
+        "to": d_to.isoformat(),
+        "categories": list(categories.values()),
+        "sections": sections,
+        "totals": totals,
+        "benchmarks": {
+            "piles_done": round(piles_done, 1),
+            "pile_threshold": pile_threshold,
+            "road_meters": round(road_meters, 1),
+            "road_threshold": road_threshold,
+        },
+        "insights": insights[:5],
     }
 
 

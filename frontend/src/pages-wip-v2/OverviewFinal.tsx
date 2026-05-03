@@ -21,6 +21,7 @@ import { WorksBySectionBlock } from './blocks/WorksBySectionBlock'
 import { ProblemsBlock } from './blocks/ProblemsBlock'
 import { DailySummaryBlock } from './blocks/DailySummaryBlock'
 import { OverviewOldReportTable } from './blocks/OverviewOldReportTable'
+import { EquipmentPulseBlock } from './blocks/EquipmentPulseBlock'
 
 type ViewMode = 'table' | 'cards'
 
@@ -60,18 +61,21 @@ export default function WipOverviewFinal() {
 
       {/* Порядок по handoff: Возка → Схемы АД → Свайные → Производительность техники */}
       <div className="p-4 sm:p-6 pb-24 lg:pb-6 space-y-6">
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+          <EquipmentPulseBlock from={from} to={to} />
+        </motion.div>
         {view === 'cards' && (
           <>
-            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.02 }}>
               <ProblemsBlock to={to} />
             </motion.div>
-            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.03 }}>
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.04 }}>
               <DailySummaryBlock from={from} to={to} />
             </motion.div>
             <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.06 }}>
               <MaterialFlowBlock from={from} to={to} view={view} />
             </motion.div>
-            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}>
               <TempRoadsBlock to={to} view={view} />
             </motion.div>
             <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.10 }}>
