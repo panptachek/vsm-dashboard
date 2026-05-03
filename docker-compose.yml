@@ -12,7 +12,7 @@ services:
       DB_HOST: works_postgres_v2
       DB_PORT: "5432"
     ports:
-      - "8090:8090"
+      - "127.0.0.1:8090:8090"
     networks:
       - vsm
       - works-system-v2_default
