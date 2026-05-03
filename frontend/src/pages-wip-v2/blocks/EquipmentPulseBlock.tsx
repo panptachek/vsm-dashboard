@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { animate, motion, useMotionValue, useTransform } from 'framer-motion'
-import { Activity, AlertTriangle, Gauge, Truck, Wrench } from 'lucide-react'
+import { Activity, Truck, Wrench } from 'lucide-react'
 
 interface CategoryPulse {
   key: 'dump_truck' | 'excavator' | 'bulldozer' | 'other'
@@ -9,7 +9,7 @@ interface CategoryPulse {
   short: string
   working: number
   idle: number
-  productivity: number | null
+  repair: number
 }
 
 interface SectionPulse {
@@ -17,13 +17,8 @@ interface SectionPulse {
   label: string
   working_total: number
   idle_total: number
-  productivity: number | null
-}
-
-interface Insight {
-  severity: 'critical' | 'high' | 'medium' | 'low'
-  title: string
-  text: string
+  repair_total: number
+  categories: Record<CategoryPulse['key'], Pick<CategoryPulse, 'working' | 'idle' | 'repair'>>
 }
 
 interface Response {
@@ -31,8 +26,7 @@ interface Response {
   to: string
   categories: CategoryPulse[]
   sections: SectionPulse[]
-  totals: { working: number; idle: number; productivity: number | null }
-  insights: Insight[]
+  totals: { working: number; idle: number; repair: number }
 }
 
 const nf = new Intl.NumberFormat('ru-RU')
@@ -45,18 +39,24 @@ function fmtPeriod(from: string, to: string): string {
   return from === to ? fmtDate(to) : `${fmtDate(from)} — ${fmtDate(to)}`
 }
 
-function pctTone(value: number | null): string {
-  if (value === null) return 'text-text-muted'
-  if (value >= 85) return 'text-progress-green'
-  if (value >= 60) return 'text-progress-amber'
-  return 'text-accent-red'
-}
+type EquipmentStatus = 'working' | 'idle' | 'repair'
 
-function pctBg(value: number | null): string {
-  if (value === null) return 'bg-neutral-300'
-  if (value >= 85) return 'bg-progress-green'
-  if (value >= 60) return 'bg-progress-amber'
-  return 'bg-accent-red'
+const STATUS_TEXT: Record<EquipmentStatus, { title: string; subtitle: string; tone: 'work' | 'idle' | 'repair' }> = {
+  working: {
+    title: 'Техника в работе',
+    subtitle: 'единиц / смен за выбранный период',
+    tone: 'work',
+  },
+  idle: {
+    title: 'Техника в простое',
+    subtitle: 'standby и нерабочие статусы без признака ремонта',
+    tone: 'idle',
+  },
+  repair: {
+    title: 'Техника в ремонте',
+    subtitle: 'ремонт, неисправность, maintenance/service',
+    tone: 'repair',
+  },
 }
 
 export function EquipmentPulseBlock({ from, to }: { from: string; to: string }) {
@@ -69,9 +69,11 @@ export function EquipmentPulseBlock({ from, to }: { from: string; to: string }) 
     return <div className="h-72 bg-white border border-border rounded-xl animate-pulse" />
   }
 
-  const maxWorking = Math.max(1, ...data.categories.map(c => c.working))
-  const maxIdle = Math.max(1, ...data.categories.map(c => c.idle))
-  const activeSections = data.sections.filter(s => s.working_total > 0 || s.idle_total > 0 || s.productivity !== null)
+  const maxByStatus: Record<EquipmentStatus, number> = {
+    working: Math.max(1, ...data.categories.map(c => c.working)),
+    idle: Math.max(1, ...data.categories.map(c => c.idle)),
+    repair: Math.max(1, ...data.categories.map(c => c.repair)),
+  }
 
   return (
     <section className="bg-white border border-border rounded-xl p-5 shadow-sm overflow-hidden">
@@ -88,124 +90,64 @@ export function EquipmentPulseBlock({ from, to }: { from: string; to: string }) 
         <div className="flex flex-wrap gap-2 text-[11px]">
           <Badge label="В работе" value={data.totals.working} tone="work" />
           <Badge label="В простое" value={data.totals.idle} tone="idle" />
-          <Badge label="Производительность" value={data.totals.productivity} suffix="%" tone="prod" />
+          <Badge label="В ремонте" value={data.totals.repair} tone="repair" />
         </div>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-        <PulseCard
-          title="Техника в работе"
-          icon="truck"
-          value={data.totals.working}
-          subtitle="единиц / смен за период"
-          categories={data.categories}
-          metric="working"
-          max={maxWorking}
-        />
-        <PulseCard
-          title="Техника в простое"
-          icon="wrench"
-          value={data.totals.idle}
-          subtitle="standby, ремонт, нерабочие статусы"
-          categories={data.categories}
-          metric="idle"
-          max={maxIdle}
-        />
-        <PulseCard
-          title="Производительность"
-          icon="gauge"
-          value={data.totals.productivity}
-          suffix="%"
-          subtitle="факт к нормативу по работающей технике"
-          categories={data.categories}
-          metric="productivity"
-          max={100}
-        />
-      </div>
-
-      <div className="mt-5 grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_420px] gap-4">
-        <div className="border border-border rounded-lg p-4 bg-bg-surface/40">
-          <div className="text-[12px] font-semibold text-text-primary uppercase tracking-wider mb-3">
-            Нагрузка по участкам
-          </div>
-          {activeSections.length === 0 ? (
-            <div className="text-sm text-text-muted">За выбранный период нет данных по технике.</div>
-          ) : (
-            <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-2">
-              {activeSections.map(section => (
-                <SectionTile key={section.section_code} section={section} />
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="border border-border rounded-lg p-4">
-          <div className="flex items-center gap-2 text-[12px] font-semibold text-text-primary uppercase tracking-wider mb-3">
-            <AlertTriangle className="w-4 h-4 text-accent-red" />
-            Логические выводы
-          </div>
-          {data.insights.length === 0 ? (
-            <div className="text-sm text-text-muted">Критичных сигналов по выбранному периоду не найдено.</div>
-          ) : (
-            <div className="space-y-2">
-              {data.insights.map((insight, index) => (
-                <InsightRow key={`${insight.title}-${index}`} insight={insight} index={index} />
-              ))}
-            </div>
-          )}
-        </div>
+        {(['working', 'idle', 'repair'] as EquipmentStatus[]).map(status => (
+          <PulseCard
+            key={status}
+            status={status}
+            value={data.totals[status]}
+            categories={data.categories}
+            sections={data.sections}
+            max={maxByStatus[status]}
+          />
+        ))}
       </div>
     </section>
   )
 }
 
 function PulseCard({
-  title,
-  icon,
+  status,
   value,
-  suffix = '',
-  subtitle,
   categories,
-  metric,
+  sections,
   max,
 }: {
-  title: string
-  icon: 'truck' | 'wrench' | 'gauge'
-  value: number | null
-  suffix?: string
-  subtitle: string
+  status: EquipmentStatus
+  value: number
   categories: CategoryPulse[]
-  metric: 'working' | 'idle' | 'productivity'
+  sections: SectionPulse[]
   max: number
 }) {
-  const Icon = icon === 'truck' ? Truck : icon === 'wrench' ? Wrench : Gauge
-  const numeric = value ?? 0
+  const meta = STATUS_TEXT[status]
+  const Icon = status === 'working' ? Truck : status === 'repair' ? Wrench : Activity
+  const activeSections = sections.filter(section => section[`${status}_total`] > 0)
   return (
-    <div className="relative border border-border rounded-lg p-4 bg-white min-h-[250px]">
+    <div className="relative border border-border rounded-lg p-4 bg-white min-h-[360px]">
       <div className="flex items-start gap-3">
         <div className="w-10 h-10 rounded-lg bg-bg-surface border border-border flex items-center justify-center">
-          <Icon className="w-5 h-5 text-accent-red" />
+          <Icon className={`w-5 h-5 ${status === 'working' ? 'text-slate-900' : 'text-accent-red'}`} />
         </div>
         <div className="flex-1">
-          <div className="text-[12px] uppercase tracking-wider text-text-muted font-semibold">{title}</div>
+          <div className="text-[12px] uppercase tracking-wider text-text-muted font-semibold">{meta.title}</div>
           <div className="mt-1 flex items-baseline gap-1.5">
             <AnimatedNumber
-              value={numeric}
-              suffix={suffix}
-              decimals={suffix ? 1 : 0}
-              className={`text-4xl font-heading font-bold leading-none ${metric === 'productivity' ? pctTone(value) : 'text-text-primary'}`}
+              value={value}
+              className="text-4xl font-heading font-bold leading-none text-text-primary"
             />
           </div>
-          <div className="mt-1 text-[11px] text-text-muted">{subtitle}</div>
+          <div className="mt-1 text-[11px] text-text-muted">{meta.subtitle}</div>
         </div>
       </div>
 
       <div className="mt-5 space-y-3">
         {categories.map((category, index) => {
-          const raw = metric === 'productivity' ? category.productivity : category[metric]
-          const level = metric === 'productivity'
-            ? Math.min((category.productivity ?? 0) / 100, 1.25)
-            : Math.min((Number(raw) || 0) / max, 1)
+          const raw = category[status]
+          const level = Math.min((Number(raw) || 0) / max, 1)
           return (
             <motion.div
               key={category.key}
@@ -218,27 +160,38 @@ function PulseCard({
                 <div className="text-[12px] font-semibold text-text-primary leading-tight">{category.label}</div>
                 <div className="text-[10px] text-text-muted font-mono">{category.short}</div>
               </div>
-              <AssemblyRail level={level} tone={metric} />
-              <div className={`text-right text-[13px] font-mono font-bold ${metric === 'productivity' ? pctTone(category.productivity) : 'text-text-primary'}`}>
-                {metric === 'productivity'
-                  ? category.productivity === null ? '—' : `${category.productivity.toFixed(0)}%`
-                  : nf.format(Number(raw) || 0)}
+              <AssemblyRail level={level} tone={status} />
+              <div className="text-right text-[13px] font-mono font-bold text-text-primary">
+                {nf.format(Number(raw) || 0)}
               </div>
             </motion.div>
           )
         })}
       </div>
+
+      <div className="mt-5 border-t border-border pt-3">
+        <div className="text-[11px] uppercase tracking-wider text-text-muted font-semibold mb-2">По участкам</div>
+        {activeSections.length === 0 ? (
+          <div className="text-[12px] text-text-muted">Нет данных по выбранному статусу.</div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2 gap-2">
+            {activeSections.map((section, index) => (
+              <SectionStatusTile key={section.section_code} section={section} status={status} index={index} />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
 
-function AssemblyRail({ level, tone }: { level: number; tone: 'working' | 'idle' | 'productivity' }) {
+function AssemblyRail({ level, tone }: { level: number; tone: EquipmentStatus }) {
   const parts = 18
   const active = Math.max(0, Math.min(parts, Math.round(parts * level)))
-  const color = tone === 'idle'
+  const color = tone === 'repair'
     ? 'bg-accent-red'
-    : tone === 'productivity'
-      ? 'bg-progress-green'
+    : tone === 'idle'
+      ? 'bg-progress-amber'
       : 'bg-slate-800'
   return (
     <div className="grid grid-cols-9 gap-1 min-w-0">
@@ -260,62 +213,63 @@ function AssemblyRail({ level, tone }: { level: number; tone: 'working' | 'idle'
   )
 }
 
-function SectionTile({ section }: { section: SectionPulse }) {
-  const total = section.working_total + section.idle_total
-  const prod = section.productivity
-  const heat = total <= 0 ? 0 : section.working_total / total
-  const fill = prod !== null ? Math.min(prod / 120, 1) : heat
-  return (
-    <div className="rounded-lg border border-border bg-white p-2 min-h-[92px]">
-      <div className="flex items-center justify-between gap-2">
-        <div className="text-[12px] font-semibold text-text-primary">{section.label}</div>
-        <div className={`text-[11px] font-mono font-bold ${pctTone(prod)}`}>
-          {prod === null ? '—' : `${prod.toFixed(0)}%`}
-        </div>
-      </div>
-      <div className="mt-2 h-2 rounded-full bg-neutral-200 overflow-hidden">
-        <motion.div
-          initial={{ width: 0 }}
-          animate={{ width: `${Math.round(fill * 100)}%` }}
-          transition={{ duration: 0.8, ease: 'easeOut' }}
-          className={`h-full ${pctBg(prod)}`}
-        />
-      </div>
-      <div className="mt-2 grid grid-cols-2 gap-1 text-[10px] font-mono">
-        <div className="rounded bg-bg-surface px-1.5 py-1">
-          <span className="text-text-muted">раб.</span> <b>{section.working_total}</b>
-        </div>
-        <div className="rounded bg-red-50 px-1.5 py-1 text-red-800">
-          <span>прост.</span> <b>{section.idle_total}</b>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function InsightRow({ insight, index }: { insight: Insight; index: number }) {
-  const tone = insight.severity === 'high' || insight.severity === 'critical'
-    ? 'border-red-200 bg-red-50 text-red-800'
-    : insight.severity === 'medium'
-      ? 'border-amber-200 bg-amber-50 text-amber-900'
-      : 'border-neutral-200 bg-bg-surface text-text-secondary'
+function SectionStatusTile({ section, status, index }: {
+  section: SectionPulse
+  status: EquipmentStatus
+  index: number
+}) {
+  const total = section[`${status}_total`]
+  const maxCat = Math.max(1, ...Object.values(section.categories).map(category => category[status]))
   return (
     <motion.div
-      initial={{ opacity: 0, x: 12 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: index * 0.05 }}
-      className={`rounded-md border px-3 py-2 ${tone}`}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.04 }}
+      className="rounded-lg border border-border bg-bg-surface/50 p-2 min-h-[104px]"
     >
-      <div className="text-[12px] font-semibold">{insight.title}</div>
-      <div className="mt-0.5 text-[11px] leading-snug">{insight.text}</div>
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-[12px] font-semibold text-text-primary">{section.label}</div>
+        <div className="text-[12px] font-mono font-bold text-text-primary">{total}</div>
+      </div>
+      <div className="mt-2 space-y-1.5">
+        {Object.entries(section.categories).map(([key, category]) => {
+          const count = category[status]
+          const width = Math.round((count / maxCat) * 100)
+          const meta = key === 'dump_truck'
+            ? { short: 'СВ', label: 'Самосвалы' }
+            : key === 'excavator'
+              ? { short: 'ЭК', label: 'Экскаваторы' }
+              : key === 'bulldozer'
+                ? { short: 'БД', label: 'Бульдозеры' }
+                : { short: 'ПР', label: 'Прочая' }
+          return (
+            <div key={key} className="grid grid-cols-[24px_minmax(0,1fr)_22px] items-center gap-1.5 text-[10px] font-mono">
+              <div className="text-text-muted" title={meta.label}>{meta.short}</div>
+              <div className="h-1.5 rounded-full bg-white overflow-hidden">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${width}%` }}
+                  transition={{ duration: 0.65, ease: 'easeOut' }}
+                  className={`h-full ${status === 'repair' ? 'bg-accent-red' : status === 'idle' ? 'bg-progress-amber' : 'bg-slate-900'}`}
+                />
+              </div>
+              <div className="text-right text-text-primary">{count}</div>
+            </div>
+          )
+        })}
+      </div>
     </motion.div>
   )
 }
 
 function Badge({ label, value, suffix = '', tone }: {
-  label: string; value: number | null; suffix?: string; tone: 'work' | 'idle' | 'prod'
+  label: string; value: number | null; suffix?: string; tone: 'work' | 'idle' | 'repair'
 }) {
-  const color = tone === 'work' ? 'bg-slate-900 text-white' : tone === 'idle' ? 'bg-red-50 text-red-800 border-red-200' : 'bg-green-50 text-green-800 border-green-200'
+  const color = tone === 'work'
+    ? 'bg-slate-900 text-white'
+    : tone === 'repair'
+      ? 'bg-red-50 text-red-800 border-red-200'
+      : 'bg-amber-50 text-amber-900 border-amber-200'
   return (
     <div className={`border rounded-md px-2 py-1 ${color}`}>
       <span className="opacity-75">{label}: </span>
