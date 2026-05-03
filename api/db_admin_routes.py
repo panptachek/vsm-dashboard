@@ -193,6 +193,29 @@ def _indexes(cur, table: str) -> list[dict[str, Any]]:
     )
 
 
+def _fk_for_column(cur, table: str, column: str) -> dict[str, Any] | None:
+    for fk in _foreign_keys(cur, table):
+        if fk["source_column"] == column:
+            return fk
+    return None
+
+
+def _label_expression(cur, target_table: str, target_alias: str = "d") -> sql.Composed:
+    target_columns = {col["column_name"] for col in _columns(cur, target_table)}
+    alias = sql.Identifier(target_alias)
+    if {"code", "name"} <= target_columns:
+        return sql.SQL("CONCAT_WS(' · ', {}.{}, {}.{})").format(
+            alias,
+            sql.Identifier("code"),
+            alias,
+            sql.Identifier("name"),
+        )
+    for column in ("name", "short_name", "object_code", "road_code", "code"):
+        if column in target_columns:
+            return sql.SQL("{}.{}::text").format(alias, sql.Identifier(column))
+    return sql.SQL("NULL")
+
+
 def _where_pk(pk_cols: list[str], pk: dict[str, Any] | None) -> tuple[sql.SQL, list[Any]]:
     if not pk_cols:
         raise HTTPException(status_code=400, detail="Table has no primary key")
@@ -374,6 +397,79 @@ def table_rows(
         )
         cur.execute(query, (limit, offset))
         return {"rows": [_json_safe(dict(row)) for row in cur.fetchall()], "limit": limit, "offset": offset}
+
+
+@router.get("/tables/{table}/columns/{column}/suggestions")
+def column_suggestions(
+    table: str,
+    column: str,
+    section_id: str | None = None,
+    limit: int = Query(default=25, ge=1, le=100),
+):
+    _allowed_table(table)
+    with _db_cursor() as (conn, cur):
+        if not _table_exists(cur, table):
+            raise HTTPException(status_code=404, detail="Table does not exist")
+
+        columns = _columns(cur, table)
+        column_names = {col["column_name"] for col in columns}
+        if column not in column_names:
+            raise HTTPException(status_code=400, detail="Column does not exist")
+
+        joins: list[sql.SQL] = []
+        params: list[Any] = []
+        where_parts = [
+            sql.SQL("t.{} IS NOT NULL").format(sql.Identifier(column)),
+            sql.SQL("t.{}::text <> ''").format(sql.Identifier(column)),
+        ]
+        label_expr: sql.SQL | sql.Composed = sql.SQL("NULL")
+
+        fk = _fk_for_column(cur, table, column)
+        if fk and _table_exists(cur, fk["target_table"]):
+            label_expr = _label_expression(cur, fk["target_table"])
+            joins.append(
+                sql.SQL("LEFT JOIN {} d ON t.{} = d.{}").format(
+                    sql.Identifier(fk["target_table"]),
+                    sql.Identifier(column),
+                    sql.Identifier(fk["target_column"]),
+                )
+            )
+
+        if section_id:
+            if "section_id" in column_names:
+                where_parts.append(sql.SQL("t.section_id = %s"))
+                params.append(section_id)
+            elif "daily_report_id" in column_names:
+                joins.append(sql.SQL("LEFT JOIN daily_reports dr_scope ON t.daily_report_id = dr_scope.id"))
+                where_parts.append(sql.SQL("dr_scope.section_id = %s"))
+                params.append(section_id)
+
+        query = sql.SQL(
+            """
+            SELECT t.{column}::text AS value,
+                   {label} AS label,
+                   COUNT(*)::int AS count
+            FROM {table} t
+            {joins}
+            WHERE {where}
+            GROUP BY 1, 2
+            ORDER BY COUNT(*) DESC, label NULLS LAST, value
+            LIMIT %s
+            """
+        ).format(
+            column=sql.Identifier(column),
+            label=label_expr,
+            table=sql.Identifier(table),
+            joins=sql.SQL(" ").join(joins),
+            where=sql.SQL(" AND ").join(where_parts),
+        )
+        cur.execute(query, params + [limit])
+        return {
+            "table": table,
+            "column": column,
+            "section_id": section_id,
+            "suggestions": [_json_safe(dict(row)) for row in cur.fetchall()],
+        }
 
 
 @router.post("/tables/{table}/validate")

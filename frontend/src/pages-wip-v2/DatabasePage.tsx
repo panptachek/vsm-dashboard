@@ -49,6 +49,12 @@ interface ValidationResult {
   after?: DbRow | null
 }
 
+interface Suggestion {
+  value: string
+  label: string | null
+  count: number
+}
+
 interface EditState {
   row: DbRow
   column: DbColumn
@@ -178,6 +184,20 @@ export default function DatabasePage() {
   const schema = schemaQuery.data
   const rows = rowsQuery.data?.rows ?? []
   const selected = tablesQuery.data?.tables.find(t => t.name === selectedTable)
+  const sectionScope = typeof edit?.row.section_id === 'string' ? edit.row.section_id : ''
+
+  const suggestionsQuery = useQuery({
+    queryKey: ['db-admin-suggestions', selectedTable, edit?.column.column_name, sectionScope],
+    queryFn: () => {
+      const params = new URLSearchParams({ limit: '30' })
+      if (sectionScope) params.set('section_id', sectionScope)
+      return apiJson<{ suggestions: Suggestion[] }>(
+        `/api/db-admin/tables/${selectedTable}/columns/${edit?.column.column_name}/suggestions?${params.toString()}`,
+      )
+    },
+    enabled: Boolean(edit && selectedTable),
+    staleTime: 30_000,
+  })
 
   const editableColumns = useMemo(() => {
     if (!schema) return new Set<string>()
@@ -347,6 +367,30 @@ export default function DatabasePage() {
               </button>
             </div>
             <div className="p-4 space-y-3">
+              {suggestionsQuery.data?.suggestions.length ? (
+                <select
+                  value=""
+                  onChange={e => {
+                    if (!e.target.value) return
+                    setEdit(prev => prev ? {
+                      ...prev,
+                      rawValue: e.target.value,
+                      validation: undefined,
+                      error: undefined,
+                    } : prev)
+                  }}
+                  className="w-full border border-border rounded-md px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-accent-red"
+                >
+                  <option value="">Популярные значения{sectionScope ? ' по участку' : ''}</option>
+                  {suggestionsQuery.data.suggestions.map(item => (
+                    <option key={`${item.value}:${item.count}`} value={item.value}>
+                      {(item.label || item.value) === item.value
+                        ? `${item.value} · ${item.count}`
+                        : `${item.label} · ${item.value} · ${item.count}`}
+                    </option>
+                  ))}
+                </select>
+              ) : null}
               <textarea
                 value={edit.rawValue}
                 onChange={e => setEdit(prev => prev ? { ...prev, rawValue: e.target.value, validation: undefined, error: undefined } : prev)}
