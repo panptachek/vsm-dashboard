@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useLocation } from 'react-router-dom'
-import { LayoutDashboard, Map, BarChart3, Train, Truck, FileText, Settings } from 'lucide-react'
+import { LayoutDashboard, Map, BarChart3, Train, Truck, FileText, Database, Settings } from 'lucide-react'
 
 const NAV = [
   { to: '/', icon: LayoutDashboard, label: 'Обзор' },
@@ -7,6 +7,7 @@ const NAV = [
   { to: '/analytics', icon: BarChart3, label: 'Аналитика' },
   { to: '/mechanization', icon: Truck, label: 'Механизация' },
   { to: '/reports', icon: FileText, label: 'Отчёты' },
+  { to: '/database', icon: Database, label: 'База данных' },
   { to: '/settings', icon: Settings, label: 'Настройки' },
 ]
 

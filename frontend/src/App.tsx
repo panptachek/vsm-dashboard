@@ -8,6 +8,7 @@ const AnalyticsFinal = lazy(() => import('./pages-wip-v2/AnalyticsFinal'))
 const MapV3 = lazy(() => import('./pages-wip-v2/MapV3'))
 const MechanizationPage = lazy(() => import('./pages-wip-v2/MechanizationPage'))
 const ReportsPage = lazy(() => import('./pages-wip-v2/ReportsPage'))
+const DatabasePage = lazy(() => import('./pages-wip-v2/DatabasePage'))
 const SettingsPage = lazy(() => import('./pages-wip-v2/SettingsPage'))
 
 const queryClient = new QueryClient({
@@ -31,6 +32,7 @@ export default function App() {
             <Route path="/analytics" element={<Suspense fallback={<Fallback />}><AnalyticsFinal /></Suspense>} />
             <Route path="/mechanization" element={<Suspense fallback={<Fallback />}><MechanizationPage /></Suspense>} />
             <Route path="/reports" element={<Suspense fallback={<Fallback />}><ReportsPage /></Suspense>} />
+            <Route path="/database" element={<Suspense fallback={<Fallback />}><DatabasePage /></Suspense>} />
             <Route path="/settings" element={<Suspense fallback={<Fallback />}><SettingsPage /></Suspense>} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>

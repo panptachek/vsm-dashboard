@@ -10,6 +10,7 @@ COPY wip_routes.py .
 COPY wip_analytics_routes.py .
 COPY wip_map_routes.py .
 COPY reports_routes.py .
+COPY db_admin_routes.py .
 COPY pdf/ pdf/
 EXPOSE 8090
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8090"]

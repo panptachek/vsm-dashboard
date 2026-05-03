@@ -1180,6 +1180,12 @@ try:
 except ImportError:
     pass
 
+try:
+    from db_admin_routes import router as db_admin_router
+    app.include_router(db_admin_router)
+except ImportError:
+    pass
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8090)
