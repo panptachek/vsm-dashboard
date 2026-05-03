@@ -66,7 +66,7 @@ export default function WipOverviewFinal() {
               <ProblemsBlock to={to} />
             </motion.div>
             <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.03 }}>
-              <DailySummaryBlock to={to} />
+              <DailySummaryBlock from={from} to={to} />
             </motion.div>
             <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.06 }}>
               <MaterialFlowBlock from={from} to={to} view={view} />

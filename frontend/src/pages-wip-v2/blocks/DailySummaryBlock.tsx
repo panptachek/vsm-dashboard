@@ -1,6 +1,6 @@
 /**
- * Блок «Выполнение за выбранную дату» + «Сводные показатели по 3 этапу».
- * Источник: /api/wip/analytics/daily-summary?to=YYYY-MM-DD
+ * Блок «Выполнение за выбранный период» + «Сводные показатели по 3 этапу».
+ * Источник: /api/wip/analytics/daily-summary?from=YYYY-MM-DD&to=YYYY-MM-DD
  */
 import { useQuery } from '@tanstack/react-query'
 import { ClipboardCheck, Route } from 'lucide-react'
@@ -35,6 +35,7 @@ interface Stage3 {
   sections: Stage3Section[]
 }
 interface Response {
+  from: string
   to: string
   summary: Summary
   stage3: Stage3
@@ -50,17 +51,27 @@ function pctColor(p: number): string {
   return 'text-accent-red'
 }
 
-export function DailySummaryBlock({ to }: { to: string }) {
+function formatDate(value: string): string {
+  return new Date(value).toLocaleDateString('ru-RU')
+}
+
+function formatPeriod(from: string, to: string): string {
+  return from === to ? formatDate(to) : `${formatDate(from)} — ${formatDate(to)}`
+}
+
+export function DailySummaryBlock({ from, to }: { from: string; to: string }) {
   const { data, isLoading } = useQuery<Response>({
-    queryKey: ['wip', 'daily-summary', to],
-    queryFn: () => fetch(`/api/wip/analytics/daily-summary?to=${to}`).then(r => r.json()),
+    queryKey: ['wip', 'daily-summary', from, to],
+    queryFn: () => fetch(`/api/wip/analytics/daily-summary?from=${from}&to=${to}`).then(r => r.json()),
   })
 
   if (isLoading || !data) {
     return <div className="h-40 bg-white border border-border rounded-xl animate-pulse" />
   }
 
-  const dateStr = new Date(data.to).toLocaleDateString('ru-RU')
+  const periodStr = formatPeriod(data.from, data.to)
+  const asOfStr = formatDate(data.to)
+  const isSingleDay = data.from === data.to
   const s = data.summary
   const st = data.stage3
   const pctTotal = st.total_length_m > 0
@@ -78,14 +89,14 @@ export function DailySummaryBlock({ to }: { to: string }) {
       <div className="flex items-center gap-2 mb-2">
         <ClipboardCheck className="w-5 h-5 text-text-primary" strokeWidth={2} />
         <h2 className="text-base font-semibold text-gray-800 mb-2 font-heading tracking-wide uppercase">
-          Выполнение за {dateStr}
+          Выполнение за {periodStr}
         </h2>
       </div>
 
       {/* 3 KPI-карточки сверху */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
         <KpiBig label="Пионерка" value={`${fmt(kpiPioneer)}`} unit="м³" />
-        <KpiBig label="ЩПГС за день" value={`${fmt(kpiShpgs)}`} unit="м³" />
+        <KpiBig label={isSingleDay ? 'ЩПГС за день' : 'ЩПГС за период'} value={`${fmt(kpiShpgs)}`} unit="м³" />
         <KpiBig
           label="% готовности (ЩПГС+готово)"
           value={`${kpiPct.toFixed(1)}`}
@@ -143,7 +154,7 @@ export function DailySummaryBlock({ to }: { to: string }) {
           <div className="text-[12px] text-text-secondary mb-3 leading-snug">
             Общая протяжённость временных притрассовых автодорог 3 этапа —
             <b className="text-text-primary font-mono"> {fmt2(st.total_length_m / 1000)} км</b>.
-            По состоянию на <b className="text-text-primary">{dateStr}</b> для проезда доступно
+            По состоянию на <b className="text-text-primary">{asOfStr}</b> для проезда доступно
             <b className="text-text-primary font-mono"> {fmt2(st.passable_m / 1000)} км</b>,
             работы по устройству ЗП завершены на
             <b className="text-text-primary font-mono"> {fmt2(st.completed_m / 1000)} км</b>,
@@ -187,7 +198,7 @@ export function DailySummaryBlock({ to }: { to: string }) {
               </tbody>
             </table>
             <div className="mt-2 text-[10px] text-text-muted">
-              Цель ЩПГС: {new Date(st.target_date).toLocaleDateString('ru-RU')} · осталось {st.days_to_target} дн.
+              Цель ЩПГС: {formatDate(st.target_date)} · осталось {st.days_to_target} дн.
             </div>
           </div>
         </div>

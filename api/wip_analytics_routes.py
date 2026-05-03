@@ -480,10 +480,11 @@ ROAD_SECTIONS = {
 
 @router.get("/analytics/daily-summary")
 def daily_summary(
+    date_from: Optional[str] = Query(None, alias="from"),
     date_to: Optional[str] = Query(None, alias="to"),
 ):
-    """Сводка «Выполнение за дату»: работы, возка, сваи, проблемы + Сводные показатели по 3 этапу."""
-    _, d_to = _parse_range(None, date_to)
+    """Сводка «Выполнение за период»: работы, возка, сваи, проблемы + срез 3 этапа на дату to."""
+    d_from, d_to = _parse_range(date_from, date_to)
 
     # 1) Работы за сутки — sum volume по wt_code
     work_rows = query(
@@ -493,10 +494,10 @@ def daily_summary(
                SUM(dwi.volume)::numeric AS volume
         FROM daily_work_items dwi
         JOIN work_types wt ON wt.id = dwi.work_type_id
-        WHERE dwi.report_date = %s
+        WHERE dwi.report_date BETWEEN %s AND %s
         GROUP BY wt.code, wt.name
         """,
-        (d_to,),
+        (d_from, d_to),
     )
     works_by_code = {r['wt_code']: {
         'name': r['wt_name'], 'unit': r['unit'],
@@ -515,10 +516,10 @@ def daily_summary(
                SUM(mm.volume)::numeric AS v
         FROM material_movements mm
         LEFT JOIN materials mat ON mat.id = mm.material_id
-        WHERE mm.report_date = %s
+        WHERE mm.report_date BETWEEN %s AND %s
         GROUP BY mat.code, mm.labor_source_type, mm.contractor_name
         """,
-        (d_to,),
+        (d_from, d_to),
     )
     mat_by_contractor: dict[str, dict[str, float]] = {}
     for r in mm_rows:
@@ -564,10 +565,10 @@ def daily_summary(
         FROM daily_report_problems p
         JOIN daily_reports dr ON dr.id = p.daily_report_id
         LEFT JOIN construction_sections cs ON cs.id = dr.section_id
-        WHERE dr.report_date = %s
+        WHERE dr.report_date BETWEEN %s AND %s
         ORDER BY cs.code, p.sort_order
         """,
-        (d_to,),
+        (d_from, d_to),
     )
     problem_list = [{
         'section_code': _merge_section(p['section_code']) or p['section_code'] or '—',
@@ -716,6 +717,7 @@ def daily_summary(
         })
 
     return {
+        'from': d_from.isoformat(),
         'to': d_to.isoformat(),
         'summary': summary,
         'problems': problem_list,
