@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ТАБЛО СВАИ — ЖДС</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&family=Bebas+Neue&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#060a06;--bg2:#0c130c;--bg3:#111a11;
+  --surface:#141e14;--surface2:#1a261a;--border:#1e2e1e;
+  --green:#39ff14;--green-dim:#2acc0f;--green-dark:#0f4a0a;
+  --amber:#ffb800;--amber-dim:#cc9200;
+  --red:#ff3333;--red-dim:#cc1a1a;
+  --text:#c8e8c0;--text-muted:#5a7a55;--text-faint:#2e4a2e;
+  --glow:0 0 20px rgba(57,255,20,.15),0 0 40px rgba(57,255,20,.05);
+  --glow-s:0 0 30px rgba(57,255,20,.4),0 0 60px rgba(57,255,20,.15);
+  --font-mono:'JetBrains Mono',monospace;
+  --font-d:'Bebas Neue',sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{background:var(--bg)}
+body{font-family:var(--font-mono);background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;position:relative}
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");background-repeat:repeat;background-size:200px;opacity:.4;mix-blend-mode:overlay}
+body::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.04) 2px,rgba(0,0,0,.04) 4px)}
+.app{position:relative;z-index:1;max-width:1400px;margin:0 auto;padding:14px 18px 40px}
+/* HEADER */
+.header{display:flex;align-items:center;justify-content:space-between;padding:14px 22px;border:1px solid var(--border);background:var(--surface);margin-bottom:14px;position:relative;overflow:hidden}
+.header::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--green),transparent);animation:scan 4s linear infinite}
+@keyframes scan{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+.logo-zone{display:flex;align-items:center;gap:14px}
+.dharma{width:50px;height:50px;border:2px solid var(--green-dim);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font-d);font-size:10px;letter-spacing:1px;color:var(--green);text-align:center;line-height:1.1;box-shadow:var(--glow);flex-shrink:0;animation:lp 6s ease-in-out infinite;position:relative}
+.dharma::before{content:'';position:absolute;inset:4px;border:1px solid rgba(57,255,20,.2);border-radius:50%}
+@keyframes lp{0%,100%{box-shadow:var(--glow)}50%{box-shadow:var(--glow-s)}}
+.title-main{font-family:var(--font-d);font-size:clamp(24px,4vw,46px);letter-spacing:6px;color:var(--green);text-shadow:0 0 20px rgba(57,255,20,.6),0 0 40px rgba(57,255,20,.2);line-height:1}
+.title-sub{font-size:10px;letter-spacing:3px;color:var(--text-muted);text-transform:uppercase;margin-top:3px}
+.header-right{text-align:right}
+.date-d{font-size:13px;color:var(--text-muted);letter-spacing:2px}
+.time-d{font-family:var(--font-d);font-size:30px;letter-spacing:4px;color:var(--amber);text-shadow:0 0 20px rgba(255,184,0,.5);line-height:1}
+.sys-s{font-size:10px;color:var(--green-dim);letter-spacing:2px;margin-top:2px}
+.blink{animation:bl 1s step-end infinite}@keyframes bl{0%,100%{opacity:1}50%{opacity:0}}
+/* STATUS BAR */
+.status-bar{display:flex;gap:10px;margin-bottom:14px;padding:9px 18px;background:var(--bg2);border:1px solid var(--border);font-size:11px;letter-spacing:2px;color:var(--text-muted);align-items:center;flex-wrap:wrap}
+.si{display:flex;align-items:center;gap:6px}
+.dot{width:6px;height:6px;border-radius:50%;animation:dp 2s ease-in-out infinite}
+.dg{background:var(--green);box-shadow:0 0 8px var(--green)}
+.da{background:var(--amber);box-shadow:0 0 8px var(--amber)}
+.dr{background:var(--red);box-shadow:0 0 8px var(--red)}
+@keyframes dp{0%,100%{opacity:1}50%{opacity:.4}}
+.ss{color:var(--text-faint)}
+/* SECTION LABEL */
+.sl{font-size:10px;letter-spacing:4px;color:var(--text-muted);text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:12px}
+.sl::after{content:'';flex:1;height:1px;background:var(--border)}
+/* CARDS */
+.sg{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
+@media(max-width:900px){.sg{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:500px){.sg{grid-template-columns:1fr}}
+.sc{background:var(--surface);border:1px solid var(--border);padding:14px;position:relative;overflow:hidden;transition:border-color .3s,box-shadow .3s}
+.sc:hover{border-color:var(--green-dim);box-shadow:var(--glow)}
+.sc::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.c1::before{background:linear-gradient(90deg,var(--green),rgba(57,255,20,.2))}
+.c3::before{background:linear-gradient(90deg,var(--amber),rgba(255,184,0,.2))}
+.c6::before{background:linear-gradient(90deg,#00cfff,rgba(0,207,255,.2))}
+.c7::before{background:linear-gradient(90deg,#cc44ff,rgba(204,68,255,.2))}
+.cn{font-family:var(--font-d);font-size:38px;letter-spacing:2px;opacity:.12;position:absolute;top:8px;right:10px;line-height:1}
+.c1 .cn{color:var(--green)}.c3 .cn{color:var(--amber)}.c6 .cn{color:#00cfff}.c7 .cn{color:#cc44ff}
+.cu{font-size:10px;letter-spacing:3px;color:var(--text-muted)}
+.cname{font-size:12px;color:var(--text);margin-top:2px;font-weight:700;line-height:1.3}
+.cm{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
+.metric{text-align:center}
+.ml{font-size:9px;letter-spacing:2px;color:var(--text-muted);text-transform:uppercase}
+.mv{font-family:var(--font-d);font-size:34px;letter-spacing:2px;line-height:1}
+.vp{color:var(--text-muted)}.vf{color:var(--green);text-shadow:0 0 15px rgba(57,255,20,.5)}
+.dbw{margin-bottom:10px}
+.dl{display:flex;justify-content:space-between;font-size:10px;margin-bottom:4px}
+.dt{height:6px;background:var(--bg);border:1px solid var(--border);overflow:hidden}
+.df{height:100%;transition:width .8s cubic-bezier(.16,1,.3,1);background:linear-gradient(90deg,var(--green-dark),var(--green))}
+.df.am{background:linear-gradient(90deg,#664a00,var(--amber))}
+.df.rd{background:linear-gradient(90deg,#4a0000,var(--red))}
+.cir{display:flex;gap:8px;align-items:center}
+.cil{font-size:10px;letter-spacing:2px;color:var(--text-muted);white-space:nowrap}
+.fi{flex:1;background:var(--bg);border:1px solid var(--border);color:var(--green);font-family:var(--font-mono);font-size:17px;font-weight:700;padding:5px 8px;text-align:center;outline:none;transition:border-color .2s,box-shadow .2s;-moz-appearance:textfield}
+.fi:focus{border-color:var(--green-dim);box-shadow:var(--glow)}
+.fi::-webkit-inner-spin-button,.fi::-webkit-outer-spin-button{-webkit-appearance:none}
+.btn{background:var(--green-dark);border:1px solid var(--green-dim);color:var(--green);font-family:var(--font-mono);font-size:11px;letter-spacing:2px;padding:5px 10px;cursor:pointer;transition:background .2s,box-shadow .2s;text-transform:uppercase}
+.btn:hover{background:rgba(57,255,20,.15);box-shadow:var(--glow)}
+.dv{font-size:13px;font-weight:700}
+.dp{color:var(--green)}.dz{color:var(--text-muted)}.dns{color:var(--amber)}.dnb{color:var(--red)}
+/* TOTAL ROW */
+.tr{display:grid;grid-template-columns:1fr 1fr 1fr 1fr 2fr;gap:12px;margin-bottom:14px}
+@media(max-width:900px){.tr{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:500px){.tr{grid-template-columns:1fr}}
+.tc{background:var(--bg2);border:1px solid var(--green-dark);padding:18px;text-align:center;position:relative;overflow:hidden}
+.tc.mt{border-color:var(--green-dim);box-shadow:var(--glow);background:var(--surface)}
+.tc::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--green-dark),transparent)}
+.tc.mt::after{background:linear-gradient(90deg,transparent,var(--green),transparent);animation:scan 3s linear infinite}
+.tl{font-size:10px;letter-spacing:3px;color:var(--text-muted);text-transform:uppercase;margin-bottom:5px}
+.tpl{font-size:13px;color:var(--text-muted);margin-bottom:3px}
+.tf{font-family:var(--font-d);letter-spacing:3px;line-height:1;color:var(--green);text-shadow:0 0 20px rgba(57,255,20,.4)}
+.tf.lg{font-size:60px}.tf.md{font-size:44px}
+.td{font-size:13px;margin-top:4px}
+/* CALENDAR */
+.cg{display:grid;grid-template-columns:190px repeat(31,minmax(34px,1fr));gap:3px;font-size:11px;overflow-x:auto}
+@media(max-width:900px){.cg{grid-template-columns:130px repeat(31,minmax(28px,1fr));font-size:10px}}
+.rl{background:var(--bg2);border:1px solid var(--border);padding:5px 10px;font-size:10px;letter-spacing:1px;color:var(--text-muted);display:flex;align-items:center;justify-content:flex-start;white-space:nowrap;overflow:hidden;min-height:30px}
+.dh{background:var(--bg2);color:var(--text-muted);border:1px solid var(--border);font-size:10px;letter-spacing:1px;padding:4px 2px;text-align:center;min-height:30px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1px}
+.dn{color:var(--text);font-size:11px;font-weight:700}.dw{font-size:9px;letter-spacing:1px;color:var(--text-faint)}
+.wk .dn{color:var(--amber-dim)}
+.ic{background:var(--bg);border:1px solid var(--border);padding:2px;min-height:30px}
+.mi{width:100%;height:100%;min-height:26px;background:transparent;border:none;outline:none;color:var(--green);font-family:var(--font-mono);font-size:12px;font-weight:700;text-align:center;-moz-appearance:textfield}
+.mi::-webkit-inner-spin-button,.mi::-webkit-outer-spin-button{-webkit-appearance:none}
+.mi:focus{background:rgba(57,255,20,.05)}
+.mi.fu{color:var(--text-faint)}.mi.td2{color:var(--amber);font-weight:800}.mi.pa{color:var(--green-dim)}
+.totc{background:var(--bg2);color:var(--text);border:1px solid var(--border);font-weight:700;font-size:12px;min-height:30px;display:flex;align-items:center;justify-content:center}
+.totc.gv{color:var(--green);text-shadow:0 0 8px rgba(57,255,20,.4)}
+.totc.av{color:var(--amber)}.totc.rv{color:var(--red)}
+.dg2{background:rgba(57,255,20,.07)!important}.dam{background:rgba(255,184,0,.07)!important}.drd{background:rgba(255,51,51,.07)!important}
+.tdcol .dh{border-color:var(--amber);background:rgba(255,184,0,.06)}
+.tdcol .ic{border-color:var(--amber-dim);background:rgba(255,184,0,.04)}
+/* CHART */
+.cw{background:var(--surface);border:1px solid var(--border);padding:18px;position:relative}
+.cw canvas{max-height:200px}
+/* FOOTER */
+.foot{border-top:1px solid var(--border);padding-top:12px;display:flex;justify-content:space-between;align-items:center;font-size:10px;letter-spacing:2px;color:var(--text-faint);flex-wrap:wrap;gap:8px}
+.fn span{color:rgba(57,255,20,.3)}
+</style>
+</head>
+<body>
+<div class="app">
+<header class="header">
+  <div class="logo-zone">
+    <div class="dharma">ЖДС<br>СВАЯ</div>
+    <div>
+      <div class="title-main">ТАБЛО СВАИ</div>
+      <div class="title-sub">Желдорстрой · Усиление земляного полотна · ВСМ-1</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="date-d" id="hdrDate"></div>
+    <div class="time-d" id="hdrTime">00:00:00</div>
+    <div class="sys-s">СИСТЕМА АКТИВНА <span class="blink">█</span></div>
+  </div>
+</header>
+
+<div class="status-bar">
+  <div class="si"><div class="dot dg"></div>УЧ.№1 · ШУНДЕЕВ Е.В.</div><div class="ss">|</div>
+  <div class="si"><div class="dot da"></div>УЧ.№3 · РЯУЗОВ А.Ю.</div><div class="ss">|</div>
+  <div class="si"><div class="dot dg"></div>УЧ.№6 · МИФТАХОВ Р.М.</div><div class="ss">|</div>
+  <div class="si"><div class="dot dg"></div>УЧ.№7 · БЕГУНОК М.Н.</div>
+  <div style="margin-left:auto;color:var(--amber);font-size:11px;letter-spacing:2px">ПЛАН/СУТКИ: 120 ШТ</div>
+</div>
+
+<div style="margin-bottom:10px"><div class="sl">СУТОЧНЫЙ ОТЧЁТ · ВВОД ФАКТА</div></div>
+
+<div class="sg">
+  <div class="sc c1">
+    <div class="cn">1</div>
+    <div class="cu">УЧАСТОК №1</div>
+    <div class="cname">Шундеев Е.В.</div>
+    <div class="cm">
+      <div class="metric"><div class="ml">ПЛАН</div><div class="mv vp" id="plan1">40</div></div>
+      <div class="metric"><div class="ml">ФАКТ</div><div class="mv vf" id="fact1">0</div></div>
+    </div>
+    <div class="dbw">
+      <div class="dl"><span>ВЫПОЛНЕНИЕ</span><span class="dv dz" id="pct1">0%</span></div>
+      <div class="dt"><div class="df" id="bar1" style="width:0%"></div></div>
+    </div>
+    <div class="cir"><span class="cil">ВВОД:</span>
+      <input type="number" class="fi" id="inp1" placeholder="0" min="0" max="999" oninput="updateCard(1)">
+      <button class="btn" onclick="confirmCard(1)">ОК</button>
+    </div>
+  </div>
+  <div class="sc c3">
+    <div class="cn">3</div>
+    <div class="cu">УЧАСТОК №3</div>
+    <div class="cname">Ряузов А.Ю.</div>
+    <div class="cm">
+      <div class="metric"><div class="ml">ПЛАН</div><div class="mv vp" id="plan3">24</div></div>
+      <div class="metric"><div class="ml">ФАКТ</div><div class="mv vf" id="fact3">0</div></div>
+    </div>
+    <div class="dbw">
+      <div class="dl"><span>ВЫПОЛНЕНИЕ</span><span class="dv dz" id="pct3">0%</span></div>
+      <div class="dt"><div class="df" id="bar3" style="width:0%"></div></div>
+    </div>
+    <div class="cir"><span class="cil">ВВОД:</span>
+      <input type="number" class="fi" id="inp3" placeholder="0" min="0" max="999" oninput="updateCard(3)">
+      <button class="btn" onclick="confirmCard(3)">ОК</button>
+    </div>
+  </div>
+  <div class="sc c6">
+    <div class="cn">6</div>
+    <div class="cu">УЧАСТОК №6</div>
+    <div class="cname">Мифтахов Р.М.</div>
+    <div class="cm">
+      <div class="metric"><div class="ml">ПЛАН</div><div class="mv vp" id="plan6">32</div></div>
+      <div class="metric"><div class="ml">ФАКТ</div><div class="mv vf" id="fact6">0</div></div>
+    </div>
+    <div class="dbw">
+      <div class="dl"><span>ВЫПОЛНЕНИЕ</span><span class="dv dz" id="pct6">0%</span></div>
+      <div class="dt"><div class="df" id="bar6" style="width:0%"></div></div>
+    </div>
+    <div class="cir"><span class="cil">ВВОД:</span>
+      <input type="number" class="fi" id="inp6" placeholder="0" min="0" max="999" oninput="updateCard(6)">
+      <button class="btn" onclick="confirmCard(6)">ОК</button>
+    </div>
+  </div>
+  <div class="sc c7">
+    <div class="cn">7</div>
+    <div class="cu">УЧАСТОК №7</div>
+    <div class="cname">Бегунок М.Н.</div>
+    <div class="cm">
+      <div class="metric"><div class="ml">ПЛАН</div><div class="mv vp" id="plan7">24</div></div>
+      <div class="metric"><div class="ml">ФАКТ</div><div class="mv vf" id="fact7">0</div></div>
+    </div>
+    <div class="dbw">
+      <div class="dl"><span>ВЫПОЛНЕНИЕ</span><span class="dv dz" id="pct7">0%</span></div>
+      <div class="dt"><div class="df" id="bar7" style="width:0%"></div></div>
+    </div>
+    <div class="cir"><span class="cil">ВВОД:</span>
+      <input type="number" class="fi" id="inp7" placeholder="0" min="0" max="999" oninput="updateCard(7)">
+      <button class="btn" onclick="confirmCard(7)">ОК</button>
+    </div>
+  </div>
+</div>
+
+<div class="tr">
+  <div class="tc" id="tc1"><div class="tl">УЧ.№1 · НАРАСТАЮЩИЙ</div><div class="tpl" id="cp1">ПЛАН: 0</div><div class="tf md" id="cf1">0</div><div class="td" id="cd1"></div></div>
+  <div class="tc" id="tc3"><div class="tl">УЧ.№3 · НАРАСТАЮЩИЙ</div><div class="tpl" id="cp3">ПЛАН: 0</div><div class="tf md" id="cf3">0</div><div class="td" id="cd3"></div></div>
+  <div class="tc" id="tc6"><div class="tl">УЧ.№6 · НАРАСТАЮЩИЙ</div><div class="tpl" id="cp6">ПЛАН: 0</div><div class="tf md" id="cf6">0</div><div class="td" id="cd6"></div></div>
+  <div class="tc" id="tc7"><div class="tl">УЧ.№7 · НАРАСТАЮЩИЙ</div><div class="tpl" id="cp7">ПЛАН: 0</div><div class="tf md" id="cf7">0</div><div class="td" id="cd7"></div></div>
+  <div class="tc mt">
+    <div class="tl">⬡ ИТОГО · НАРАСТАЮЩИЙ ИТОГ ⬡</div>
+    <div style="display:flex;justify-content:center;gap:28px;align-items:flex-end">
+      <div><div style="font-size:11px;letter-spacing:2px;color:var(--text-muted);margin-bottom:2px">ПЛАН</div><div class="tpl" id="cpA" style="font-size:22px;color:var(--text-muted);font-family:var(--font-d);letter-spacing:2px">0</div></div>
+      <div><div style="font-size:11px;letter-spacing:2px;color:var(--text-muted);margin-bottom:2px">ФАКТ</div><div class="tf lg" id="cfA">0</div></div>
+    </div>
+    <div class="td" id="cdA" style="font-size:14px;margin-top:5px"></div>
+  </div>
+</div>
+
+<div style="margin-bottom:10px"><div class="sl">ПРОИЗВОДСТВЕННЫЙ КАЛЕНДАРЬ · МАЙ 2026</div></div>
+<div class="cg" id="calGrid" style="margin-bottom:14px"></div>
+
+<div style="margin-bottom:10px"><div class="sl">ДИНАМИКА ВЫПОЛНЕНИЯ · МАЙ 2026</div></div>
+<div class="cw" style="margin-bottom:14px"><canvas id="mc"></canvas></div>
+
+<footer class="foot">
+  <div>ООО «ЖЕЛДОРСТРОЙ» · ВСМ-1 · УСИЛЕНИЕ ЗЕМЛЯНОГО ПОЛОТНА</div>
+  <div class="fn"><span>4</span>·<span>8</span>·<span>15</span>·<span>16</span>·<span>23</span>·<span>42</span></div>
+  <div>ТАБЛО СВАИ v2.6 · МАЙ 2026</div>
+</footer>
+</div>
+
+<script>
+const SECS=[{id:1,plan:40},{id:3,plan:24},{id:6,plan:32},{id:7,plan:24}];
+const TPDAY=120,DIM=31,TODAY=6,WDAYS=['ВС','ПН','ВТ','СР','ЧТ','ПТ','СБ'],MDOW=5;
+let cal={1:{},3:{},6:{},7:{}},tdy={1:0,3:0,6:0,7:0};
+
+function clock(){
+  const n=new Date(),ds=['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'],ms=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+  document.getElementById('hdrDate').textContent=ds[n.getDay()]+', '+n.getDate()+' '+ms[n.getMonth()]+' '+n.getFullYear();
+  document.getElementById('hdrTime').textContent=[n.getHours(),n.getMinutes(),n.getSeconds()].map(x=>String(x).padStart(2,'0')).join(':');
+}
+setInterval(clock,1000);clock();
+
+function updateCard(sid){
+  const v=Math.max(0,parseInt(document.getElementById('inp'+sid).value)||0);
+  tdy[sid]=v;renderCard(sid);updateTotals();
+}
+function confirmCard(sid){
+  const inp=document.getElementById('inp'+sid);
+  const v=Math.max(0,parseInt(inp.value)||0);
+  tdy[sid]=v;cal[sid][TODAY]=v;
+  renderCard(sid);updateCal();updateTotals();updateChart();
+  inp.style.borderColor='#39ff14';setTimeout(()=>inp.style.borderColor='',1500);
+}
+function renderCard(sid){
+  const s=SECS.find(x=>x.id===sid),f=tdy[sid],p=s.plan;
+  const pct=p>0?Math.min(100,Math.round(f/p*100)):0;
+  document.getElementById('fact'+sid).textContent=f;
+  const pe=document.getElementById('pct'+sid),be=document.getElementById('bar'+sid);
+  pe.textContent=pct+'%';be.style.width=pct+'%';
+  if(pct>=100){be.className='df';pe.className='dv dp';}
+  else if(pct>=75){be.className='df am';pe.className='dv dns';}
+  else if(f>0){be.className='df rd';pe.className='dv dnb';}
+  else{be.className='df';pe.className='dv dz';}
+}
+function updateTotals(){
+  SECS.forEach(s=>{
+    let cf=0;
+    for(let d=1;d<=TODAY;d++)cf+=(cal[s.id][d]||0);
+    if(!cal[s.id][TODAY]&&tdy[s.id]>0)cf+=tdy[s.id];
+    const cp=s.plan*TODAY,dv=cf-cp;
+    document.getElementById('cp'+s.id).textContent='ПЛАН: '+cp;
+    document.getElementById('cf'+s.id).textContent=cf;
+    const de=document.getElementById('cd'+s.id);
+    de.textContent=(dv>=0?'+':'')+dv+' шт';
+    de.className='td '+(dv>=0?'dp':dv>=-s.plan*.1?'dns':'dnb');
+  });
+  let af=0,ap=0;
+  SECS.forEach(s=>{
+    let cf=0;for(let d=1;d<=TODAY;d++)cf+=(cal[s.id][d]||0);
+    if(!cal[s.id][TODAY]&&tdy[s.id]>0)cf+=tdy[s.id];
+    af+=cf;ap+=s.plan*TODAY;
+  });
+  const ad=af-ap;
+  document.getElementById('cpA').textContent=ap;
+  document.getElementById('cfA').textContent=af;
+  const ae=document.getElementById('cdA');
+  ae.textContent=(ad>=0?'+':'')+ad+' ШТ ОТКЛОНЕНИЕ';
+  ae.style.color=ad>=0?'var(--green)':ad>=-TPDAY?'var(--amber)':'var(--red)';
+  ae.style.textShadow=ad>=0?'0 0 15px rgba(57,255,20,.5)':'';
+}
+
+function buildCal(){
+  const g=document.getElementById('calGrid');g.innerHTML='';
+  const rh=document.createElement('div');rh.className='rl';rh.style.background='var(--bg)';rh.innerHTML='<span style="font-size:9px;letter-spacing:2px">УЧАСТОК</span>';g.appendChild(rh);
+  for(let d=1;d<=DIM;d++){
+    const dw=(MDOW+d-1)%7,iw=dw===0||dw===6,it=d===TODAY;
+    const c=document.createElement('div');c.className='dh'+(iw?' wk':'')+(it?' tdcol':'');c.id='dh'+d;
+    c.innerHTML='<span class="dn">'+d+'</span><span class="dw">'+WDAYS[dw]+'</span>';g.appendChild(c);
+  }
+  SECS.forEach(s=>{
+    const rl=document.createElement('div');rl.className='rl';
+    rl.innerHTML='УЧ.'+s.id+' ['+s.plan+']';g.appendChild(rl);
+    for(let d=1;d<=DIM;d++){
+      const it=d===TODAY,ip=d<TODAY,ifu=d>TODAY;
+      const cell=document.createElement('div');cell.className='ic'+(it?' tdcol':'');cell.id='cl_'+s.id+'_'+d;
+      const inp=document.createElement('input');inp.type='number';inp.min=0;inp.max=999;
+      inp.className='mi'+(ifu?' fu':it?' td2':' pa');inp.id='ci_'+s.id+'_'+d;
+      if(cal[s.id][d]!==undefined)inp.value=cal[s.id][d];
+      if(ifu)inp.readOnly=true;
+      inp.addEventListener('change',()=>{
+        const v=Math.max(0,parseInt(inp.value)||0);cal[s.id][d]=v;
+        if(d===TODAY){tdy[s.id]=v;renderCard(s.id);}
+        updRow(s.id);updDayTot(d);updateTotals();updateChart();
+      });
+      cell.appendChild(inp);g.appendChild(cell);
+    }
+  });
+  const tl=document.createElement('div');tl.className='rl';tl.style.background='var(--bg)';
+  tl.innerHTML='<span style="color:var(--green);font-weight:700">∑ ИТОГО</span>';g.appendChild(tl);
+  for(let d=1;d<=DIM;d++){
+    const c=document.createElement('div');c.className='totc'+(d===TODAY?' tdcol':'');c.id='dt'+d;c.textContent='—';g.appendChild(c);
+  }
+  updateCal();
+}
+function updateCal(){
+  SECS.forEach(s=>{for(let d=1;d<=TODAY;d++){const inp=document.getElementById('ci_'+s.id+'_'+d);if(inp&&cal[s.id][d]!==undefined)inp.value=cal[s.id][d];}updRow(s.id);});
+  for(let d=1;d<=DIM;d++)updDayTot(d);
+}
+function updRow(sid){
+  const s=SECS.find(x=>x.id===sid);
+  for(let d=1;d<=TODAY;d++){
+    const v=cal[sid][d],cell=document.getElementById('cl_'+sid+'_'+d);
+    if(!cell||v===undefined)continue;
+    const pct=s.plan>0?v/s.plan:0;
+    const base='ic'+(d===TODAY?' tdcol':'');
+    cell.className=base+' '+(pct>=1?'dg2':pct>=.75?'dam':'drd');
+  }
+}
+function updDayTot(d){
+  const c=document.getElementById('dt'+d);if(!c)return;
+  if(d>TODAY){c.textContent='—';c.className='totc';return;}
+  let tot=0,has=false;
+  SECS.forEach(s=>{if(cal[s.id][d]!==undefined){tot+=cal[s.id][d];has=true;}});
+  if(!has){c.textContent='—';c.className='totc';return;}
+  const p=tot/TPDAY;c.textContent=tot;
+  c.className='totc '+(p>=1?'gv':p>=.75?'av':'rv');
+}
+
+let mc;
+function buildChart(){
+  const ctx=document.getElementById('mc').getContext('2d');
+  const labs=Array.from({length:TODAY},(_,i)=>''+(i+1));
+  const pd=Array.from({length:TODAY},(_,i)=>TPDAY*(i+1));
+  mc=new Chart(ctx,{type:'bar',data:{labels:labs,datasets:[
+    {type:'line',label:'ПЛАН НАРАСТАЮЩИЙ',data:pd,borderColor:'rgba(255,184,0,.6)',backgroundColor:'transparent',borderWidth:2,borderDash:[6,3],pointRadius:0,tension:.1,yAxisID:'y'},
+    {label:'УЧ.1 ШУНДЕЕВ',data:Array(TODAY).fill(0),backgroundColor:'rgba(57,255,20,.75)',stack:'f'},
+    {label:'УЧ.3 РЯУЗОВ',data:Array(TODAY).fill(0),backgroundColor:'rgba(255,184,0,.75)',stack:'f'},
+    {label:'УЧ.6 МИФТАХОВ',data:Array(TODAY).fill(0),backgroundColor:'rgba(0,207,255,.75)',stack:'f'},
+    {label:'УЧ.7 БЕГУНОК',data:Array(TODAY).fill(0),backgroundColor:'rgba(204,68,255,.75)',stack:'f'},
+  ]},options:{responsive:true,maintainAspectRatio:true,animation:{duration:500},
+    plugins:{legend:{labels:{color:'#5a7a55',font:{family:'JetBrains Mono',size:11},boxWidth:12}},
+      tooltip:{backgroundColor:'#0c130c',borderColor:'#1e2e1e',borderWidth:1,titleColor:'#39ff14',bodyColor:'#c8e8c0',titleFont:{family:'JetBrains Mono'},bodyFont:{family:'JetBrains Mono'}}},
+    scales:{x:{stacked:true,ticks:{color:'#5a7a55',font:{family:'JetBrains Mono',size:10}},grid:{color:'rgba(30,46,30,.5)'}},
+      y:{stacked:true,ticks:{color:'#5a7a55',font:{family:'JetBrains Mono',size:10}},grid:{color:'rgba(30,46,30,.5)'}}}}});
+  updateChart();
+}
+function updateChart(){
+  if(!mc)return;
+  SECS.forEach((s,i)=>{const d=[];for(let x=1;x<=TODAY;x++)d.push(cal[s.id][x]||0);mc.data.datasets[i+1].data=d;});
+  mc.update();
+}
+
+buildCal();buildChart();SECS.forEach(s=>renderCard(s.id));updateTotals();
+</script>
+</body>
+</html>

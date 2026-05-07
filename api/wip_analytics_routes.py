@@ -513,15 +513,17 @@ def daily_summary(
         SELECT mat.code AS mat,
                mm.labor_source_type AS labor_src,
                LOWER(COALESCE(mm.contractor_name, '')) AS contractor_name,
+               mm.movement_type,
                SUM(mm.volume)::numeric AS v
         FROM material_movements mm
         LEFT JOIN materials mat ON mat.id = mm.material_id
         WHERE mm.report_date BETWEEN %s AND %s
-        GROUP BY mat.code, mm.labor_source_type, mm.contractor_name
+        GROUP BY mat.code, mm.labor_source_type, mm.contractor_name, mm.movement_type
         """,
         (d_from, d_to),
     )
     mat_by_contractor: dict[str, dict[str, float]] = {}
+    sand_quarry_by_contractor: dict[str, float] = {'own': 0.0, 'almaz': 0.0, 'hired': 0.0, 'total': 0.0}
     for r in mm_rows:
         mat = (r['mat'] or 'OTHER').upper()
         v = float(r['v'] or 0)
@@ -535,6 +537,9 @@ def daily_summary(
         mat_by_contractor.setdefault(mat, {'own': 0.0, 'almaz': 0.0, 'hired': 0.0, 'total': 0.0})
         mat_by_contractor[mat][bucket] += v
         mat_by_contractor[mat]['total'] += v
+        if mat == 'SAND' and r.get('movement_type') in ('pit_to_stockpile', 'pit_to_constructive'):
+            sand_quarry_by_contractor[bucket] += v
+            sand_quarry_by_contractor['total'] += v
 
     # 3) Сваи — из daily_work_items PILE_*
     piles = {
@@ -548,6 +553,7 @@ def daily_summary(
         'vyemka_m3':  pick(['EARTH_EXCAVATION']),
         'shpgs_m3':   pick(['CRUSHED_STONE_PLACEMENT', 'FIRST_PROTECTIVE_LAYER']),
         'sand_transport': mat_by_contractor.get('SAND', {'own': 0, 'almaz': 0, 'hired': 0, 'total': 0}),
+        'sand_quarry_transport': sand_quarry_by_contractor,
         'shpgs_transport': mat_by_contractor.get('SHPGS', {'own': 0, 'almaz': 0, 'hired': 0, 'total': 0}),
         'soil_transport': mat_by_contractor.get('SOIL', {'own': 0, 'almaz': 0, 'hired': 0, 'total': 0}),
         'piles': {

@@ -7,7 +7,8 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Truck, ChevronRight } from 'lucide-react'
-import { PeriodBar, usePeriod } from './PeriodBar'
+import { PeriodBar } from './PeriodBar'
+import { usePeriod } from './usePeriod'
 
 interface ShiftDetail {
   date: string; shift: string; section: string

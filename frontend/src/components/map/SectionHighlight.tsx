@@ -8,6 +8,8 @@ interface SectionHighlightProps {
   sections: Section[]
   /** Actively selected section code, or null for all */
   activeSection?: string | null
+  /** External multi-select filter. null means all sections are active. */
+  activeSections?: Set<string> | null
 }
 
 /**
@@ -15,7 +17,7 @@ interface SectionHighlightProps {
  * Each section is rendered as a thick semi-transparent polyline along the route
  * using its map_color. Section bounds are indicated with tooltips.
  */
-export function SectionHighlight({ pickets, sections, activeSection }: SectionHighlightProps) {
+export function SectionHighlight({ pickets, sections, activeSection, activeSections = null }: SectionHighlightProps) {
   const sectionPolylines = useMemo(() => {
     if (!pickets || pickets.length < 2 || !sections) return []
 
@@ -41,7 +43,9 @@ export function SectionHighlight({ pickets, sections, activeSection }: SectionHi
         const endPt = getLatLngByPicketage(pickets, pkEnd)
         if (endPt) points.push(endPt)
 
-        const isActive = activeSection === section.code || activeSection == null
+        const isActive = activeSections
+          ? activeSections.has(section.code)
+          : (activeSection === section.code || activeSection == null)
 
         return {
           key: `${section.code}-r${rangeIdx}`,
@@ -55,7 +59,7 @@ export function SectionHighlight({ pickets, sections, activeSection }: SectionHi
         }
       })
     })
-  }, [pickets, sections, activeSection])
+  }, [pickets, sections, activeSection, activeSections])
 
   if (sectionPolylines.length === 0) return null
 

@@ -61,6 +61,12 @@ function fmt(n: number | null | undefined): string {
   return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(n)
 }
 
+function formatDbPK(pk: number | null | undefined): string {
+  if (pk == null || !Number.isFinite(pk)) return '—'
+  const normalized = Math.abs(pk) >= 10_000 ? pk / 100 : pk
+  return formatPK(normalized)
+}
+
 export function ObjectInfoPopup({ id, type, dateISO, fallbackTitle, fallbackSubtitle }: Props) {
   const { data, isLoading, error } = useQuery<ObjectInfoResponse>({
     queryKey: ['wip-map-object-info', id, type, dateISO],
@@ -97,7 +103,7 @@ export function ObjectInfoPopup({ id, type, dateISO, fallbackTitle, fallbackSubt
         <strong>Свайное поле {data.field_code}</strong>
         <div style={{ color: '#666', fontSize: 11, marginBottom: 6 }}>
           {data.pk_start != null && data.pk_end != null
-            ? `${formatPK(data.pk_start)} — ${formatPK(data.pk_end)}`
+            ? `${formatDbPK(data.pk_start)} — ${formatDbPK(data.pk_end)}`
             : (data.pk_raw_text ?? '—')}
         </div>
         <table style={tblStyle}>
@@ -156,7 +162,7 @@ export function ObjectInfoPopup({ id, type, dateISO, fallbackTitle, fallbackSubt
   // kind === 'object' — формат ПК всегда «ПК####+##.##», игнорируем pk_raw_text
   // из БД (там может лежать «323730.67-324037.27» — сырые метры).
   const pkRange = data.pk_start != null
-    ? `${formatPK(data.pk_start)}${data.pk_end != null ? ` — ${formatPK(data.pk_end)}` : ''}`
+    ? `${formatDbPK(data.pk_start)}${data.pk_end != null ? ` — ${formatDbPK(data.pk_end)}` : ''}`
     : (data.pk_raw_text ?? null)
 
   return (

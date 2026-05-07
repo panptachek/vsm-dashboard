@@ -336,7 +336,7 @@ def object_info(
     if type == 'pile_field':
         row = query_one(
             """
-            SELECT field_code, field_type, pile_type, pile_count,
+            SELECT id, field_code, field_type, pile_type, pile_count,
                    dynamic_test_count, pk_start, pk_end, pk_raw_text,
                    start_lat, start_lng
             FROM pile_fields
@@ -349,7 +349,7 @@ def object_info(
 
         # Плановые объёмы из project_work_items + фактические на дату
         # из daily_work_items (PILE_MAIN/PILE_TRIAL/PILE_DYNTEST), сопоставляем
-        # объект по object_code = field_code.
+        # через daily_work_item_segments.pile_field_id.
         pf_works = query(
             """
             SELECT wt.code AS wt_code, wt.name AS work, pwi.unit,
@@ -367,11 +367,11 @@ def object_info(
             SELECT wt.code AS wt_code, SUM(dwi.volume)::numeric AS v
             FROM daily_work_items dwi
             JOIN work_types wt ON wt.id = dwi.work_type_id
-            JOIN objects o ON o.id = dwi.object_id
-            WHERE o.object_code = %s AND dwi.report_date <= %s
+            JOIN daily_work_item_segments seg ON seg.daily_work_item_id = dwi.id
+            WHERE seg.pile_field_id = %s AND dwi.report_date <= %s
             GROUP BY wt.code
             """,
-            (row['field_code'], d),
+            (row['id'], d),
         )
         fact_by_wt = {r['wt_code']: float(r['v'] or 0) for r in fact_rows}
 

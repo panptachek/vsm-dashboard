@@ -1,5 +1,5 @@
 import { useMemo, useState, useCallback } from 'react'
-import { Polyline, Marker, Popup } from 'react-leaflet'
+import { Polyline, Marker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import type { Picket, MapObject, PileField, ObjectTypeKey } from '../../types/geo'
 import {
@@ -35,37 +35,60 @@ function typeToDbCode(t: string): string {
 // SVG templates for PERPENDICULAR objects (fixed pixel size, zoom-independent)
 // ---------------------------------------------------------------------------
 
-/** Pipe/Overpass: vertical bar with chevrons on both ends (∨—∧ rotated).
- * Default orientation: vertical (long axis = Y). Rotate by tangent to match axis. */
-function svgPipeOverpass(color: string, sw: number = 2): string {
-  return `<svg width="12" height="32" viewBox="0 0 12 32" xmlns="http://www.w3.org/2000/svg">
-    <polyline points="2,3 6,6 10,3" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round"/>
-    <line x1="6" y1="6" x2="6" y2="26" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>
-    <polyline points="2,29 6,26 10,29" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round"/>
+/** Culvert: compact perpendicular pipe sign. Default orientation is vertical;
+ * rotating by the track tangent keeps it perpendicular to the route axis. */
+function svgPipe(color: string, sw: number = 2): string {
+  return `<svg width="18" height="42" viewBox="0 0 18 42" xmlns="http://www.w3.org/2000/svg">
+    <rect x="5" y="3" width="8" height="36" rx="2" fill="#fff7ed" stroke="${color}" stroke-width="${sw}"/>
+    <line x1="3" y1="10" x2="15" y2="10" stroke="${color}" stroke-width="${sw}" stroke-linecap="square"/>
+    <line x1="3" y1="32" x2="15" y2="32" stroke="${color}" stroke-width="${sw}" stroke-linecap="square"/>
+    <line x1="9" y1="8" x2="9" y2="34" stroke="#1a1a1a" stroke-width="1.2" stroke-linecap="square"/>
   </svg>`
 }
 
-/** Intersection: dashed perpendicular line with 'N' letters between dash segments. */
-function svgIntersection(color: string, sw: number): string {
-  return `<svg width="14" height="36" viewBox="0 0 14 36" xmlns="http://www.w3.org/2000/svg">
-    <line x1="7" y1="1" x2="7" y2="8" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>
-    <text x="7" y="14" text-anchor="middle" font-size="7" fill="${color}" font-weight="700" font-family="Arial,sans-serif">N</text>
-    <line x1="7" y1="16" x2="7" y2="20" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>
-    <text x="7" y="26" text-anchor="middle" font-size="7" fill="${color}" font-weight="700" font-family="Arial,sans-serif">N</text>
-    <line x1="7" y1="28" x2="7" y2="35" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>
+/** Overpass: perpendicular road deck, distinct from culvert. */
+function svgOverpass(color: string, sw: number = 2): string {
+  return `<svg width="22" height="46" viewBox="0 0 22 46" xmlns="http://www.w3.org/2000/svg">
+    <line x1="7" y1="3" x2="7" y2="43" stroke="${color}" stroke-width="${sw}" stroke-linecap="square"/>
+    <line x1="15" y1="3" x2="15" y2="43" stroke="${color}" stroke-width="${sw}" stroke-linecap="square"/>
+    <line x1="3" y1="9" x2="19" y2="9" stroke="#1a1a1a" stroke-width="1.4" stroke-linecap="square"/>
+    <line x1="3" y1="23" x2="19" y2="23" stroke="#1a1a1a" stroke-width="1.4" stroke-linecap="square"/>
+    <line x1="3" y1="37" x2="19" y2="37" stroke="#1a1a1a" stroke-width="1.4" stroke-linecap="square"/>
+    <path d="M7 3h8M7 43h8" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="square"/>
+  </svg>`
+}
+
+/** Intersection: perpendicular crossing sign; dashed for proposed crossings. */
+function svgIntersection(color: string, sw: number, dashed: boolean): string {
+  const dash = dashed ? ' stroke-dasharray="5 4"' : ''
+  return `<svg width="22" height="46" viewBox="0 0 22 46" xmlns="http://www.w3.org/2000/svg">
+    <line x1="11" y1="2" x2="11" y2="44" stroke="${color}" stroke-width="${sw}" stroke-linecap="square"${dash}/>
+    <line x1="4" y1="12" x2="18" y2="12" stroke="${color}" stroke-width="${sw}" stroke-linecap="square"/>
+    <line x1="4" y1="34" x2="18" y2="34" stroke="${color}" stroke-width="${sw}" stroke-linecap="square"/>
+    <rect x="7" y="19" width="8" height="8" fill="#ffffff" stroke="${color}" stroke-width="1.5"/>
   </svg>`
 }
 
 function makeIcon(svg: string, w: number, h: number, angleDeg: number, active: boolean): L.DivIcon {
+  const hitW = Math.max(w + 24, 44)
+  const hitH = Math.max(h + 24, 54)
   const ring = active
     ? `filter:drop-shadow(0 0 6px #dc2626) drop-shadow(0 0 10px #dc2626);`
     : ''
   return L.divIcon({
     className: active ? 'vsm-obj-active' : '',
-    html: `<div style="transform:rotate(${angleDeg}deg);width:${w}px;height:${h}px;pointer-events:auto;cursor:pointer;${ring}">${svg}</div>`,
-    iconSize: [w, h],
-    iconAnchor: [w / 2, h / 2],
+    html: `<div style="position:relative;width:${hitW}px;height:${hitH}px;pointer-events:auto;cursor:pointer;">
+      <div style="position:absolute;left:50%;top:50%;width:${w}px;height:${h}px;transform:translate(-50%,-50%) rotate(${angleDeg}deg);${ring}">
+        ${svg}
+      </div>
+    </div>`,
+    iconSize: [hitW, hitH],
+    iconAnchor: [hitW / 2, hitH / 2],
   })
+}
+
+function iconHitSize(w: number, h: number): { hitW: number; hitH: number } {
+  return { hitW: Math.max(w + 24, 44), hitH: Math.max(h + 24, 54) }
 }
 
 // ---------------------------------------------------------------------------
@@ -113,17 +136,149 @@ function typeToFilter(t: string): ObjectTypeKey | null {
   return valid.includes(t as ObjectTypeKey) ? t as ObjectTypeKey : null
 }
 
+function typeLabel(t: string): string {
+  const labels: Record<string, string> = {
+    pipe: 'Труба',
+    overpass: 'Путепровод',
+    intersection_fin: 'Пересечение, фин.',
+    intersection_prop: 'Пересечение, имущ.',
+    bridge: 'Мост',
+  }
+  return labels[mapTypeCode(t)] ?? t
+}
+
+interface ObjectChoice {
+  key: string
+  obj: MapObject
+  title: string
+  subtitle: string
+}
+
+interface PerpendicularMarker {
+  key: string
+  obj: MapObject
+  pos: LatLng
+  icon: L.DivIcon
+  hitW: number
+  hitH: number
+}
+
+function objectChoice(key: string, obj: MapObject): ObjectChoice {
+  return {
+    key,
+    obj,
+    title: obj.name || typeLabel(obj.type),
+    subtitle: `${typeLabel(obj.type)} · ${fmtPkRange(obj.pk_start, obj.pk_end)}`,
+  }
+}
+
+function overlap(a: { x: number; y: number; w: number; h: number }, b: { x: number; y: number; w: number; h: number }): boolean {
+  const pad = 6
+  return Math.abs(a.x - b.x) * 2 <= a.w + b.w + pad * 2
+    && Math.abs(a.y - b.y) * 2 <= a.h + b.h + pad * 2
+}
+
+function ObjectChooserPopup({
+  choices,
+  detailKey,
+  dateISO,
+  onChoose,
+  onBack,
+}: {
+  choices: ObjectChoice[]
+  detailKey: string | null
+  dateISO: string
+  onChoose: (key: string) => void
+  onBack: () => void
+}) {
+  const selectedChoice = detailKey ? choices.find(c => c.key === detailKey) : null
+  if (choices.length > 1 && !selectedChoice) {
+    return (
+      <div style={{ minWidth: 260, maxWidth: 360, fontSize: 12 }}>
+        <strong>Выберите объект</strong>
+        <div style={{ color: '#666', fontSize: 11, marginTop: 3, marginBottom: 8 }}>
+          В этой точке перекрываются {choices.length} обозначения.
+        </div>
+        <div style={{ display: 'grid', gap: 6 }}>
+          {choices.map(choice => (
+            <button
+              key={choice.key}
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation()
+                onChoose(choice.key)
+              }}
+              style={{
+                appearance: 'none',
+                border: '1px solid #e5e7eb',
+                background: '#fff',
+                borderRadius: 6,
+                padding: '7px 8px',
+                textAlign: 'left',
+                cursor: 'pointer',
+              }}
+            >
+              <div style={{ fontWeight: 700, color: '#111827', lineHeight: 1.2 }}>{choice.title}</div>
+              <div style={{ color: '#6b7280', fontSize: 11, marginTop: 2 }}>{choice.subtitle}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  const choice = selectedChoice ?? choices[0]
+  return (
+    <div>
+      {choices.length > 1 && (
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation()
+            onBack()
+          }}
+          style={{
+            appearance: 'none',
+            border: 0,
+            background: 'transparent',
+            color: '#991b1b',
+            cursor: 'pointer',
+            fontSize: 11,
+            fontWeight: 700,
+            padding: '0 0 6px',
+          }}
+        >
+          ← к списку объектов
+        </button>
+      )}
+      <ObjectInfoPopup
+        id={String(choice.obj.id)}
+        type={typeToDbCode(choice.obj.type)}
+        dateISO={dateISO}
+        fallbackTitle={choice.obj.name}
+        fallbackSubtitle={fmtPkRange(choice.obj.pk_start, choice.obj.pk_end)}
+      />
+    </div>
+  )
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
 export function ObjectsLayer({ pickets, objects, pileFields, zoom, enabledObjectTypes, infoDateISO }: ObjectsLayerProps) {
+  const map = useMap()
   // `selected` tracks which object's popup is currently open, so we can apply
-  // a red glow/ring to it. Click toggles; Leaflet popup onClose clears it.
+  // a red glow/ring to it. Leaflet popup onClose clears it.
   const [selected, setSelected] = useState<string | null>(null)
-  const handleClick = useCallback((id: string) => setSelected(p => p === id ? null : id), [])
+  const [popupDetailKey, setPopupDetailKey] = useState<string | null>(null)
+  const handleClick = useCallback((id: string) => {
+    setSelected(id)
+    setPopupDetailKey(null)
+  }, [])
   const handleClose = useCallback((id: string) => {
     setSelected((p) => (p === id ? null : p))
+    setPopupDetailKey(null)
   }, [])
   const today = new Date().toISOString().slice(0, 10)
   const dateISO = infoDateISO ?? today
@@ -144,11 +299,14 @@ export function ObjectsLayer({ pickets, objects, pileFields, zoom, enabledObject
       if (tc === 'bridge') return null // handled separately
 
       let svg: string, w: number, h: number
-      if (tc === 'pipe') { svg = svgPipeOverpass('#ff7f00', 2); w = 12; h = 32 }
-      else if (tc === 'overpass') { svg = svgPipeOverpass('#05008e', 2); w = 12; h = 32 }
-      else if (tc === 'intersection_fin') { svg = svgIntersection('#00ff00', 1.5); w = 14; h = 36 }
-      else if (tc === 'intersection_prop') { svg = svgIntersection('#ff00ff', 2); w = 14; h = 36 }
+      const scale = zoom >= 18 ? 1.15 : 1
+      if (tc === 'pipe') { svg = svgPipe('#f97316', 2); w = 18; h = 42 }
+      else if (tc === 'overpass') { svg = svgOverpass('#1d4ed8', 2); w = 22; h = 46 }
+      else if (tc === 'intersection_fin') { svg = svgIntersection('#16a34a', 2, false); w = 22; h = 46 }
+      else if (tc === 'intersection_prop') { svg = svgIntersection('#c026d3', 2, true); w = 22; h = 46 }
       else return null
+      w = Math.round(w * scale)
+      h = Math.round(h * scale)
 
       if (zoom < 13) return null // hide at low zoom
 
@@ -159,9 +317,61 @@ export function ObjectsLayer({ pickets, objects, pileFields, zoom, enabledObject
       // Perpendicular: SVG line is vertical, axis goes horizontal → rotate by tangent
       const deg = tang * 180 / Math.PI
       const key = `perp-${obj.id}`
-      return { key, obj, pos: pos as LatLng, icon: makeIcon(svg, w, h, deg, selected === key) }
-    }).filter(Boolean) as { key: string; obj: MapObject; pos: LatLng; icon: L.DivIcon }[]
+      const { hitW, hitH } = iconHitSize(w, h)
+      return { key, obj, pos: pos as LatLng, icon: makeIcon(svg, w, h, deg, selected === key), hitW, hitH }
+    }).filter(Boolean) as PerpendicularMarker[]
   }, [objects, pickets, zoom, enabledObjectTypes, selected])
+
+  const overlapChoicesByKey = useMemo(() => {
+    const out = new Map<string, ObjectChoice[]>()
+    if (perpMarkers.length <= 1) {
+      for (const marker of perpMarkers) out.set(marker.key, [objectChoice(marker.key, marker.obj)])
+      return out
+    }
+
+    const projected = perpMarkers.map(marker => {
+      const point = map.latLngToLayerPoint(L.latLng(marker.pos[0], marker.pos[1]))
+      return {
+        marker,
+        rect: { x: point.x, y: point.y, w: marker.hitW, h: marker.hitH },
+      }
+    })
+    const parent = projected.map((_, index) => index)
+    const find = (index: number): number => {
+      while (parent[index] !== index) {
+        parent[index] = parent[parent[index]]
+        index = parent[index]
+      }
+      return index
+    }
+    const join = (a: number, b: number) => {
+      const ra = find(a)
+      const rb = find(b)
+      if (ra !== rb) parent[rb] = ra
+    }
+
+    for (let i = 0; i < projected.length; i++) {
+      for (let j = i + 1; j < projected.length; j++) {
+        if (overlap(projected[i].rect, projected[j].rect)) join(i, j)
+      }
+    }
+
+    const groups = new Map<number, ObjectChoice[]>()
+    projected.forEach(({ marker }, index) => {
+      const root = find(index)
+      const choice = objectChoice(marker.key, marker.obj)
+      if (!groups.has(root)) groups.set(root, [])
+      groups.get(root)!.push(choice)
+    })
+    for (const group of groups.values()) {
+      group.sort((a, b) =>
+        a.obj.pk_start - b.obj.pk_start
+        || typeLabel(a.obj.type).localeCompare(typeLabel(b.obj.type), 'ru')
+        || a.title.localeCompare(b.title, 'ru'))
+      for (const choice of group) out.set(choice.key, group)
+    }
+    return out
+  }, [perpMarkers, map])
 
   // ═══════════════════════════════════════════════════════════════════════
   // BRIDGES — two offset polylines along axis + whiskers at ends
@@ -231,12 +441,15 @@ export function ObjectsLayer({ pickets, objects, pileFields, zoom, enabledObject
           }}
         >
           <Popup>
-            <ObjectInfoPopup
-              id={String(obj.id)}
-              type={typeToDbCode(obj.type)}
+            <ObjectChooserPopup
+              choices={overlapChoicesByKey.get(key) ?? [objectChoice(key, obj)]}
+              detailKey={popupDetailKey}
               dateISO={dateISO}
-              fallbackTitle={obj.name}
-              fallbackSubtitle={fmtPkRange(obj.pk_start, obj.pk_end)}
+              onChoose={(choiceKey) => {
+                setSelected(choiceKey)
+                setPopupDetailKey(choiceKey)
+              }}
+              onBack={() => setPopupDetailKey(null)}
             />
           </Popup>
         </Marker>
@@ -255,7 +468,7 @@ export function ObjectsLayer({ pickets, objects, pileFields, zoom, enabledObject
               <Polyline key={`${key}-w${i}`} positions={w} pathOptions={{ color: lineColor, weight: isActive ? 2 : 1.2 }} interactive={false} />
             ))}
             {/* Invisible hit area */}
-            <Polyline positions={upper} pathOptions={{ color: '#000', weight: 15, opacity: 0 }}
+            <Polyline positions={upper} pathOptions={{ color: '#000', weight: 24, opacity: 0 }}
               eventHandlers={{
                 click: () => handleClick(key),
                 popupclose: () => handleClose(key),
@@ -291,7 +504,7 @@ export function ObjectsLayer({ pickets, objects, pileFields, zoom, enabledObject
             <Polyline positions={innerUpper} pathOptions={{ color: lineColor, weight: innerWeight }} interactive={false} />
             <Polyline positions={innerLower} pathOptions={{ color: lineColor, weight: innerWeight }} interactive={false} />
             {/* Hit area */}
-            <Polyline positions={upper} pathOptions={{ color: '#007fff', weight: 15, opacity: 0 }}
+            <Polyline positions={upper} pathOptions={{ color: '#007fff', weight: 24, opacity: 0 }}
               eventHandlers={{
                 click: () => handleClick(key),
                 popupclose: () => handleClose(key),

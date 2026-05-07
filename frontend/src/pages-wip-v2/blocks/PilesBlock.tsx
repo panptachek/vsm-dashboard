@@ -1,7 +1,7 @@
 /**
  * Блок «Свайные работы»: 3 KPI карточки (основные/пробные/дин.исп)
- * + таблица по участкам (с начала / факт / план).
- * План = факт × 1.5 (демонстрационный множитель, см. футер).
+ * + таблица по участкам (с начала / факт / проект).
+ * Проект = статический каталог свайных полей из pile_fields.
  */
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
@@ -21,8 +21,6 @@ interface PileRow {
   is_demo?: boolean
 }
 
-const PLAN_MULT = 1.5
-
 const nf = new Intl.NumberFormat('ru-RU')
 const fmt = (n: number) => nf.format(Math.round(n))
 
@@ -39,36 +37,39 @@ export function PilesBlock({
     rows: PileRow[]
     fact_by_section?: Record<string, { main: number; test: number; dyn: number }>
     fact_totals?: { main: number; test: number; dyn: number }
+    cumulative_by_section?: Record<string, { main: number; test: number; dyn: number }>
+    cumulative_totals?: { main: number; test: number; dyn: number }
   }>({
     queryKey: ['wip', 'piles', from, to],
     queryFn: () => fetch(`/api/wip/piles?from=${from}&to=${to}`).then(r => r.json()),
     staleTime: 5 * 60_000,
   })
 
-  // План = SUM(pile_count) из pile_fields (статический каталог полей).
+  // Проект = SUM(pile_count) из pile_fields (статический каталог полей).
   // Факт = SUM(daily_work_items.volume) за период по work_types PILE_*.
-  const { planBySec, planTotals, factBySec, factTotals } = useMemo(() => {
+  const { projectBySec, projectTotals, factBySec, factTotals, cumulativeBySec } = useMemo(() => {
     const rows = data?.rows ?? []
-    const planBySec: Record<string, SecStats> = {}
-    const planTotals: SecStats = { main: 0, test: 0, dyn: 0 }
+    const projectBySec: Record<string, SecStats> = {}
+    const projectTotals: SecStats = { main: 0, test: 0, dyn: 0 }
     for (const r of rows) {
       const sec = r.section_code
-      planBySec[sec] ??= { main: 0, test: 0, dyn: 0 }
+      projectBySec[sec] ??= { main: 0, test: 0, dyn: 0 }
       const cnt = r.pile_count ?? 0
       if (r.field_type === 'test') {
-        planBySec[sec].test += cnt
-        planTotals.test += cnt
+        projectBySec[sec].test += cnt
+        projectTotals.test += cnt
       } else {
-        planBySec[sec].main += cnt
-        planTotals.main += cnt
+        projectBySec[sec].main += cnt
+        projectTotals.main += cnt
       }
       const dc = r.dynamic_test_count ?? 0
-      planBySec[sec].dyn += dc
-      planTotals.dyn += dc
+      projectBySec[sec].dyn += dc
+      projectTotals.dyn += dc
     }
     const factBySec = data?.fact_by_section ?? {}
     const factTotals = data?.fact_totals ?? { main: 0, test: 0, dyn: 0 }
-    return { planBySec, planTotals, factBySec, factTotals }
+    const cumulativeBySec = data?.cumulative_by_section ?? {}
+    return { projectBySec, projectTotals, factBySec, factTotals, cumulativeBySec }
   }, [data])
 
   if (isLoading || !data) {
@@ -77,15 +78,18 @@ export function PilesBlock({
 
   // Группировка по номеру участка 1..8 (UCH_31+UCH_32 → №3)
   const sectionNums = [1, 2, 3, 4, 5, 6, 7, 8]
-  const planByNum: Record<number, SecStats> = {}
+  const projectByNum: Record<number, SecStats> = {}
   const factByNum: Record<number, SecStats> = {}
+  const cumulativeByNum: Record<number, SecStats> = {}
   for (const code of ACTIVE_SECTION_CODES) {
     const n = sectionCodeToNumber(code)
-    planByNum[n] ??= { main: 0, test: 0, dyn: 0 }
+    projectByNum[n] ??= { main: 0, test: 0, dyn: 0 }
     factByNum[n] ??= { main: 0, test: 0, dyn: 0 }
-    const p = planBySec[code]; const f = factBySec[code]
-    if (p) { planByNum[n].main += p.main; planByNum[n].test += p.test; planByNum[n].dyn += p.dyn }
+    cumulativeByNum[n] ??= { main: 0, test: 0, dyn: 0 }
+    const p = projectBySec[code]; const f = factBySec[code]; const c = cumulativeBySec[code]
+    if (p) { projectByNum[n].main += p.main; projectByNum[n].test += p.test; projectByNum[n].dyn += p.dyn }
     if (f) { factByNum[n].main += f.main; factByNum[n].test += f.test; factByNum[n].dyn += f.dyn }
+    if (c) { cumulativeByNum[n].main += c.main; cumulativeByNum[n].test += c.test; cumulativeByNum[n].dyn += c.dyn }
   }
 
   return (
@@ -96,15 +100,15 @@ export function PilesBlock({
           Свайные работы
         </h2>
         <span className="text-xs text-text-muted">
-          факт за период · план с начала · прогресс
+          факт за период · проект с начала · прогресс
         </span>
       </div>
 
-      {/* KPI cards: план = pile_fields catalog, факт = daily_work_items за период */}
+      {/* KPI cards: проект = pile_fields catalog, факт = daily_work_items за период */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
-        <KpiCard label="СВАИ ОСНОВНЫЕ" fact={factTotals.main} plan={planTotals.main} />
-        <KpiCard label="СВАИ ПРОБНЫЕ" fact={factTotals.test} plan={planTotals.test} />
-        <KpiCard label="ДИНАМ. ИСПЫТАНИЯ" fact={factTotals.dyn} plan={planTotals.dyn} />
+        <KpiCard label="СВАИ ОСНОВНЫЕ" fact={factTotals.main} project={projectTotals.main} />
+        <KpiCard label="СВАИ ПРОБНЫЕ" fact={factTotals.test} project={projectTotals.test} />
+        <KpiCard label="ДИНАМ. ИСПЫТАНИЯ" fact={factTotals.dyn} project={projectTotals.dyn} />
       </div>
 
       {/* Table */}
@@ -121,25 +125,26 @@ export function PilesBlock({
               <th className="text-left py-1 pr-3 font-normal"></th>
               <th className="text-right py-1 px-2 font-normal border-l border-border/60">С НАЧАЛА</th>
               <th className="text-right py-1 px-2 font-normal">ФАКТ</th>
-              <th className="text-right py-1 px-2 font-normal">ПЛАН</th>
+              <th className="text-right py-1 px-2 font-normal">ПРОЕКТ</th>
               <th className="text-right py-1 px-2 font-normal border-l border-border/60">С НАЧАЛА</th>
               <th className="text-right py-1 px-2 font-normal">ФАКТ</th>
-              <th className="text-right py-1 px-2 font-normal">ПЛАН</th>
+              <th className="text-right py-1 px-2 font-normal">ПРОЕКТ</th>
               <th className="text-right py-1 px-2 font-normal border-l border-border/60">ФАКТ</th>
-              <th className="text-right py-1 px-2 font-normal">ПЛАН</th>
+              <th className="text-right py-1 px-2 font-normal">ПРОЕКТ</th>
             </tr>
           </thead>
           <tbody>
             {sectionNums.map(n => {
-              const p = planByNum[n]
+              const p = projectByNum[n]
               const f = factByNum[n]
+              const c = cumulativeByNum[n]
               return (
                 <tr key={n} className="border-t border-border/60">
                   <td className="py-2 pr-3 font-semibold text-text-primary">№{n}</td>
-                  <td className="py-2 px-2 text-right font-mono text-text-secondary border-l border-border/60">{fmt(f.main)}</td>
+                  <td className="py-2 px-2 text-right font-mono text-text-secondary border-l border-border/60">{fmt(c.main)}</td>
                   <td className="py-2 px-2 text-right font-mono text-text-secondary">{fmt(f.main)}</td>
                   <td className="py-2 px-2 text-right font-mono text-text-secondary">{fmt(p.main)}</td>
-                  <td className="py-2 px-2 text-right font-mono text-text-secondary border-l border-border/60">{fmt(f.test)}</td>
+                  <td className="py-2 px-2 text-right font-mono text-text-secondary border-l border-border/60">{fmt(c.test)}</td>
                   <td className="py-2 px-2 text-right font-mono text-text-secondary">{fmt(f.test)}</td>
                   <td className="py-2 px-2 text-right font-mono text-text-secondary">{fmt(p.test)}</td>
                   <td className="py-2 px-2 text-right font-mono text-text-secondary border-l border-border/60">{fmt(f.dyn)}</td>
@@ -152,15 +157,15 @@ export function PilesBlock({
       </div>
 
       <div className="mt-3 text-[11px] text-text-muted">
-        План — SUM(pile_count) из <code className="font-mono bg-bg-surface px-1 rounded">pile_fields</code>.
+        Проект — SUM(pile_count) из <code className="font-mono bg-bg-surface px-1 rounded">pile_fields</code>.
         Факт — SUM(volume) из <code className="font-mono bg-bg-surface px-1 rounded">daily_work_items</code> за период по work_types PILE_MAIN/PILE_TRIAL/PILE_DYNTEST. Если факт = 0 — свайные работы ещё не размечены в суточных отчётах.
       </div>
     </section>
   )
 }
 
-function KpiCard({ label, fact, plan }: { label: string; fact: number; plan: number }) {
-  const pct = plan > 0 ? Math.round((fact / plan) * 100) : 0
+function KpiCard({ label, fact, project }: { label: string; fact: number; project: number }) {
+  const pct = project > 0 ? Math.round((fact / project) * 100) : 0
   return (
     <div className="border border-border rounded-lg p-4 bg-white">
       <div className="text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1">
@@ -173,8 +178,8 @@ function KpiCard({ label, fact, plan }: { label: string; fact: number; plan: num
         факт за период
       </div>
       <div className="mt-2 flex items-baseline gap-1 text-[12px] font-mono text-text-secondary">
-        <span className="text-text-muted">план:</span>
-        <span className="text-text-primary">{fmt(plan)}</span>
+        <span className="text-text-muted">Проект:</span>
+        <span className="text-text-primary">{fmt(project)}</span>
         <span className="text-text-muted mx-1">·</span>
         <span className="text-[#16a34a] font-semibold">{pct}%</span>
       </div>

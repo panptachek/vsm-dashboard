@@ -1,21 +1,19 @@
-<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
-  <title id="title">Excavator / Экскаватор icon</title>
-  <desc id="desc">Minimal construction machinery SVG icon: Excavator / Экскаватор.</desc>
-  <style>
-  .main{fill:none;stroke:#111827;stroke-width:8;stroke-linecap:round;stroke-linejoin:round;}
-  .accent{fill:none;stroke:#C91F2E;stroke-width:8;stroke-linecap:round;stroke-linejoin:round;}
-  .soft{fill:#F3F4F6;stroke:#111827;stroke-width:8;stroke-linecap:round;stroke-linejoin:round;}
-</style>
-  
-  <path class="accent" d="M34 184h145"/>
-  <rect class="soft" x="36" y="166" width="148" height="34" rx="17"/>
-  <path class="main" d="M62 200h98"/>
-  <path class="soft" d="M71 116h76c18 0 33 15 33 33v17H58v-37c0-7 6-13 13-13Z"/>
-  <path class="main" d="M104 116v50M147 116l25 50"/>
-  <path class="accent" d="M156 119l37-42 27 22-35 36"/>
-  <path class="accent" d="M220 99l8 47"/>
-  <path class="main" d="M228 146l-28 18 37 11 8-24-17-5Z"/>
-  <path class="main" d="M83 96h41"/>
-
+  <title id="title">Excavator</title>
+  <desc id="desc">Industrial excavator silhouette with tracks, cab, articulated boom and bucket.</desc>
+  <g fill="none" stroke="#1a1a1a" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+    <path fill="#f4f4f5" d="M43 164h111l19 18-19 18H43l-19-18z"/>
+    <circle cx="66" cy="182" r="11" fill="#1a1a1a"/>
+    <circle cx="102" cy="182" r="11" fill="#1a1a1a"/>
+    <circle cx="138" cy="182" r="11" fill="#1a1a1a"/>
+    <path fill="#ffffff" d="M72 102h56l28 62H56z"/>
+    <path d="M89 114h32l16 37H71z"/>
+    <path d="M128 110 164 67 201 88"/>
+    <path d="M164 67 185 111"/>
+    <path d="M201 88 219 126"/>
+    <path fill="#e5e7eb" d="M217 123c14 8 18 22 9 36l-25-13z"/>
+    <path d="M42 164h114"/>
+    <path d="M42 200h114"/>
+  </g>
+  <path d="M72 147h78l8 17H58z" fill="#f59e0b"/>
 </svg>

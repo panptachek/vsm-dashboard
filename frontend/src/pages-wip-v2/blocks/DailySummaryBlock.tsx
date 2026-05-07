@@ -13,6 +13,7 @@ interface Summary {
   vyemka_m3: number
   shpgs_m3: number
   sand_transport: ContractorSplit
+  sand_quarry_transport?: ContractorSplit
   shpgs_transport: ContractorSplit
   soil_transport: ContractorSplit
   piles: { main: number; trial: number; dyntest: number; total: number }
@@ -71,11 +72,13 @@ export function DailySummaryBlock({ from, to }: { from: string; to: string }) {
 
   const periodStr = formatPeriod(data.from, data.to)
   const asOfStr = formatDate(data.to)
-  const isSingleDay = data.from === data.to
   const s = data.summary
   const st = data.stage3
   const pctTotal = st.total_length_m > 0
     ? (st.ready_plus_done_m / st.total_length_m * 100) : 0
+  const tempRoadShpgsPct = st.total_length_m > 0
+    ? (st.completed_m / st.total_length_m * 100) : 0
+  const sandQuarry = s.sand_quarry_transport ?? s.sand_transport
 
   return (
     <section className="bg-white border border-border rounded-xl p-5 shadow-sm">
@@ -88,11 +91,21 @@ export function DailySummaryBlock({ from, to }: { from: string; to: string }) {
 
       {/* 3 KPI-карточки сверху */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
-        <KpiBig label="Пионерка" value="—" />
-        <KpiBig label={isSingleDay ? 'ЩПГС за день' : 'ЩПГС за период'} value="—" />
         <KpiBig
-          label="% готовности (ЩПГС+готово)"
-          value="—"
+          label="Завоз песка"
+          value={fmt(sandQuarry.total)}
+          unit="м³"
+        />
+        <KpiBig
+          label="Забитые сваи"
+          value={fmt(s.piles.total)}
+          unit="шт"
+        />
+        <KpiBig
+          label="% готовности временных АД"
+          value={tempRoadShpgsPct.toLocaleString('ru-RU', { maximumFractionDigits: 1 })}
+          unit="%"
+          colorClass={pctColor(tempRoadShpgsPct)}
         />
       </div>
 
@@ -101,13 +114,13 @@ export function DailySummaryBlock({ from, to }: { from: string; to: string }) {
         <div className="space-y-3 text-[13px]">
           <SummaryRow label="Снятие ПРС" value={`${fmt(s.prs_m3)} м³`} />
           <div>
-            <SummaryRow label="Песок (возка)"
-              value={`${fmt(s.sand_transport.total)} м³`}
+            <SummaryRow label="Песок (завоз с карьеров)"
+              value={`${fmt(sandQuarry.total)} м³`}
               bold />
             <div className="ml-5 mt-1 space-y-0.5 text-[12px] text-text-secondary font-mono">
-              <div>— собственными силами: {fmt(s.sand_transport.own)} м³</div>
-              <div>— силами ООО «АЛМАЗ»: {fmt(s.sand_transport.almaz)} м³</div>
-              <div>— наёмники: {fmt(s.sand_transport.hired)} м³</div>
+              <div>— собственными силами: {fmt(sandQuarry.own)} м³</div>
+              <div>— силами ООО «АЛМАЗ»: {fmt(sandQuarry.almaz)} м³</div>
+              <div>— наёмники: {fmt(sandQuarry.hired)} м³</div>
             </div>
           </div>
           <SummaryRow label="Выемка грунта" value={`${fmt(s.vyemka_m3)} м³`} />

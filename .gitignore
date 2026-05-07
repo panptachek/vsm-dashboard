@@ -11,3 +11,4 @@ api/.venv/
 uploads/
 *.bak
 api/.venv/
+graphify-out/cache/

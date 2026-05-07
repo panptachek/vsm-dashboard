@@ -37,6 +37,15 @@ const LABEL: Record<EquipKey, string> = {
   pile_driver: 'Копёр',
 }
 
+const TYPE_ACCENT: Record<EquipKey, string> = {
+  dump_truck: '#dc2626',
+  excavator: '#f59e0b',
+  bulldozer: '#ca8a04',
+  motor_grader: '#2563eb',
+  road_roller: '#16a34a',
+  pile_driver: '#7c3aed',
+}
+
 interface Unit {
   plate: string
   brand: string
@@ -77,22 +86,35 @@ interface Props {
 
 function buildIcon(type: EquipKey, count: number): L.DivIcon {
   const iconUrl = ICON_MAP[type]
-  // 52×52 circle, 36×36 inner SVG. Always axis-aligned — no rotation applied.
+  const accent = TYPE_ACCENT[type]
+  // Industrial plate marker. Always axis-aligned: equipment is a state marker,
+  // not a linear object, so it must stay readable regardless of route angle.
   const html = `
     <div style="
       position: relative;
-      width: 52px; height: 52px;
-      background: white;
+      width: 58px; height: 48px;
+      background: linear-gradient(180deg, #ffffff 0%, #f4f4f5 100%);
       border: 2px solid #1a1a1a;
-      border-radius: 50%;
+      border-radius: 7px;
       display: flex; align-items: center; justify-content: center;
       box-shadow: 0 2px 8px rgba(0,0,0,0.35);
       overflow: visible;
     ">
-      <img src="${iconUrl}" style="width: 36px; height: 36px; display: block;" alt="${LABEL[type]}" />
+      <div style="
+        position:absolute; left:0; top:0; bottom:0; width:7px;
+        background:${accent};
+        border-radius:4px 0 0 4px;
+        border-right:2px solid #1a1a1a;
+      "></div>
+      <div style="
+        position:absolute; left:11px; right:6px; top:5px; bottom:5px;
+        display:flex; align-items:center; justify-content:center;
+      ">
+        <img src="${iconUrl}" style="width: 40px; height: 34px; display: block;" alt="${LABEL[type]}" />
+      </div>
       ${count > 1 ? `<span style="
         position: absolute;
-        top: -4px; right: -4px;
+        top: -8px; right: -8px;
         min-width: 22px; height: 22px;
         padding: 0 6px;
         background: #dc2626;
@@ -110,8 +132,8 @@ function buildIcon(type: EquipKey, count: number): L.DivIcon {
   return L.divIcon({
     html,
     className: 'vsm-equip-icon',
-    iconSize: [52, 52],
-    iconAnchor: [26, 26],
+    iconSize: [58, 48],
+    iconAnchor: [29, 24],
   })
 }
 

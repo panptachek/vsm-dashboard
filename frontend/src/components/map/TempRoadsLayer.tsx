@@ -22,6 +22,7 @@ export function TempRoadsLayer({ enabled = true }: { enabled?: boolean }) {
   const { data } = useQuery<{ roads: TempRoad[] }>({
     queryKey: ['wip', 'map', 'temp-roads'],
     queryFn: () => fetch('/api/wip/map/temp-roads').then(r => r.json()),
+    enabled,
     staleTime: 5 * 60_000,
   })
   if (!enabled || !data?.roads) return null

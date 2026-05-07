@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { ComponentType, ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, Check, Database, KeyRound, Link2, RefreshCw, Save, X } from 'lucide-react'
@@ -121,22 +121,18 @@ export default function DatabasePage() {
     queryFn: () => apiJson<{ tables: DbTable[] }>('/api/db-admin/tables'),
   })
 
-  useEffect(() => {
-    if (!selectedTable && tablesQuery.data?.tables.length) {
-      setSelectedTable(tablesQuery.data.tables[0].name)
-    }
-  }, [selectedTable, tablesQuery.data])
+  const activeTable = selectedTable || tablesQuery.data?.tables[0]?.name || ''
 
   const schemaQuery = useQuery({
-    queryKey: ['db-admin-schema', selectedTable],
-    queryFn: () => apiJson<DbSchema>(`/api/db-admin/tables/${selectedTable}/schema`),
-    enabled: Boolean(selectedTable),
+    queryKey: ['db-admin-schema', activeTable],
+    queryFn: () => apiJson<DbSchema>(`/api/db-admin/tables/${activeTable}/schema`),
+    enabled: Boolean(activeTable),
   })
 
   const rowsQuery = useQuery({
-    queryKey: ['db-admin-rows', selectedTable],
-    queryFn: () => apiJson<{ rows: DbRow[]; limit: number; offset: number }>(`/api/db-admin/tables/${selectedTable}/rows?limit=150`),
-    enabled: Boolean(selectedTable),
+    queryKey: ['db-admin-rows', activeTable],
+    queryFn: () => apiJson<{ rows: DbRow[]; limit: number; offset: number }>(`/api/db-admin/tables/${activeTable}/rows?limit=150`),
+    enabled: Boolean(activeTable),
   })
 
   const validateMutation = useMutation({
@@ -145,7 +141,7 @@ export default function DatabasePage() {
       if (!schema) throw new Error('Схема не загружена')
       const value = coerceValue(state.column, state.rawValue)
       const pk = Object.fromEntries(schema.primary_key.map(col => [col, state.row[col]]))
-      return apiJson<ValidationResult>(`/api/db-admin/tables/${selectedTable}/validate`, {
+      return apiJson<ValidationResult>(`/api/db-admin/tables/${activeTable}/validate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'update', pk, values: { [state.column.column_name]: value } }),
@@ -161,7 +157,7 @@ export default function DatabasePage() {
       if (!schema) throw new Error('Схема не загружена')
       const value = coerceValue(state.column, state.rawValue)
       const pk = Object.fromEntries(schema.primary_key.map(col => [col, state.row[col]]))
-      return apiJson<ValidationResult>(`/api/db-admin/tables/${selectedTable}/apply`, {
+      return apiJson<ValidationResult>(`/api/db-admin/tables/${activeTable}/apply`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -175,7 +171,7 @@ export default function DatabasePage() {
     },
     onSuccess: () => {
       setEdit(null)
-      qc.invalidateQueries({ queryKey: ['db-admin-rows', selectedTable] })
+      qc.invalidateQueries({ queryKey: ['db-admin-rows', activeTable] })
       qc.invalidateQueries({ queryKey: ['db-admin-tables'] })
     },
     onError: error => setEdit(prev => prev ? { ...prev, error: (error as Error).message } : prev),
@@ -183,30 +179,31 @@ export default function DatabasePage() {
 
   const schema = schemaQuery.data
   const rows = rowsQuery.data?.rows ?? []
-  const selected = tablesQuery.data?.tables.find(t => t.name === selectedTable)
+  const selected = tablesQuery.data?.tables.find(t => t.name === activeTable)
+  const tableEditable = Boolean(selected?.editable)
   const sectionScope = typeof edit?.row.section_id === 'string' ? edit.row.section_id : ''
 
   const suggestionsQuery = useQuery({
-    queryKey: ['db-admin-suggestions', selectedTable, edit?.column.column_name, sectionScope],
+    queryKey: ['db-admin-suggestions', activeTable, edit?.column.column_name, sectionScope],
     queryFn: () => {
       const params = new URLSearchParams({ limit: '30' })
       if (sectionScope) params.set('section_id', sectionScope)
       return apiJson<{ suggestions: Suggestion[] }>(
-        `/api/db-admin/tables/${selectedTable}/columns/${edit?.column.column_name}/suggestions?${params.toString()}`,
+        `/api/db-admin/tables/${activeTable}/columns/${edit?.column.column_name}/suggestions?${params.toString()}`,
       )
     },
-    enabled: Boolean(edit && selectedTable),
+    enabled: Boolean(edit && activeTable),
     staleTime: 30_000,
   })
 
   const editableColumns = useMemo(() => {
-    if (!schema) return new Set<string>()
+    if (!schema || !tableEditable) return new Set<string>()
     return new Set(
       schema.columns
         .filter(col => !schema.primary_key.includes(col.column_name) && !PROTECTED_COLUMNS.has(col.column_name))
         .map(col => col.column_name),
     )
-  }, [schema])
+  }, [schema, tableEditable])
 
   function beginEdit(row: DbRow, column: DbColumn) {
     if (!editableColumns.has(column.column_name)) return
@@ -225,8 +222,8 @@ export default function DatabasePage() {
           type="button"
           onClick={() => {
             qc.invalidateQueries({ queryKey: ['db-admin-tables'] })
-            qc.invalidateQueries({ queryKey: ['db-admin-schema', selectedTable] })
-            qc.invalidateQueries({ queryKey: ['db-admin-rows', selectedTable] })
+            qc.invalidateQueries({ queryKey: ['db-admin-schema', activeTable] })
+            qc.invalidateQueries({ queryKey: ['db-admin-rows', activeTable] })
           }}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] font-semibold border border-border bg-white hover:bg-bg-surface"
         >
@@ -249,12 +246,19 @@ export default function DatabasePage() {
                   setEdit(null)
                 }}
                 className={`w-full text-left px-3 py-2 rounded-md border transition-colors ${
-                  selectedTable === table.name
+                  activeTable === table.name
                     ? 'border-accent-red bg-red-50 text-text-primary'
                     : 'border-transparent hover:border-border hover:bg-bg-surface text-text-secondary'
                 }`}
               >
-                <div className="text-[13px] font-semibold">{table.label}</div>
+                <div className="flex items-center gap-2">
+                  <div className="text-[13px] font-semibold flex-1">{table.label}</div>
+                  {!table.editable && (
+                    <span className="text-[9px] uppercase tracking-wide border border-border rounded px-1.5 py-0.5 text-text-muted">
+                      просмотр
+                    </span>
+                  )}
+                </div>
                 <div className="text-[11px] font-mono text-text-muted">{table.name} · {table.rows}</div>
               </button>
             ))}
@@ -266,9 +270,16 @@ export default function DatabasePage() {
             title={selected ? `${selected.label} · ${selected.name}` : 'Таблица'}
             icon={KeyRound}
             right={schema && (
-              <span className="text-[11px] font-mono text-text-muted">
-                PK: {schema.primary_key.join(', ') || '—'}
-              </span>
+              <div className="flex items-center gap-2">
+                {!tableEditable && (
+                  <span className="text-[10px] uppercase tracking-wide border border-border rounded px-1.5 py-0.5 text-text-muted">
+                    только чтение
+                  </span>
+                )}
+                <span className="text-[11px] font-mono text-text-muted">
+                  PK: {schema.primary_key.join(', ') || '—'}
+                </span>
+              </div>
             )}
           >
             {schemaQuery.isLoading && <div className="text-sm text-text-muted">Загрузка схемы...</div>}
@@ -294,7 +305,7 @@ export default function DatabasePage() {
                           </td>
                           <td className="py-1.5 px-2 text-text-secondary">{col.data_type}</td>
                           <td className="py-1.5 px-2 text-text-secondary">{col.is_nullable}</td>
-                          <td className="py-1.5 px-2 text-text-muted font-mono max-w-[360px] truncate">{col.column_default || '—'}</td>
+                          <td className="py-1.5 px-2 text-text-muted font-mono max-w-[360px] break-words">{col.column_default || '—'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -338,7 +349,7 @@ export default function DatabasePage() {
                               }`}
                               title={editable ? 'Двойной клик для редактирования' : undefined}
                             >
-                              <span className="block truncate">{displayCell(row[col.column_name])}</span>
+                              <span className="block break-words">{displayCell(row[col.column_name])}</span>
                             </td>
                           )
                         })}
@@ -359,7 +370,7 @@ export default function DatabasePage() {
             <div className="px-4 py-3 border-b border-border flex items-center gap-3">
               <Save className="w-4 h-4 text-accent-red" />
               <div className="flex-1">
-                <div className="text-sm font-heading font-bold text-text-primary">{selectedTable}.{edit.column.column_name}</div>
+                <div className="text-sm font-heading font-bold text-text-primary">{activeTable}.{edit.column.column_name}</div>
                 <div className="text-[11px] text-text-muted">{edit.column.data_type}</div>
               </div>
               <button type="button" onClick={() => setEdit(null)} className="p-1.5 rounded hover:bg-bg-surface">

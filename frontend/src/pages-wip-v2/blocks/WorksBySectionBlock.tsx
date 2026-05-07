@@ -49,7 +49,7 @@ export function WorksBySectionBlock({ from, to }: { from: string; to: string }) 
     },
   })
 
-  const rows = data?.rows ?? []
+  const rows = useMemo(() => data?.rows ?? [], [data?.rows])
   const totalVolume = useMemo(
     () => rows.reduce((sum, r) => sum + r.volume, 0),
     [rows],

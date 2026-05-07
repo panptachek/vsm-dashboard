@@ -318,6 +318,79 @@ def _ensure_parse_tables():
                         ALTER TABLE daily_reports ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'draft';
                     EXCEPTION WHEN duplicate_column THEN NULL; END $$
                 """)
+                # Pile facts are tied to pile_fields through item segments. object_id is
+                # still used for bridges/pipes/roads, but pile-field facts do not need a
+                # synthetic STUFF_* object.
+                cur.execute("""
+                    ALTER TABLE daily_work_item_segments
+                    ADD COLUMN IF NOT EXISTS pile_field_id UUID
+                """)
+                cur.execute("""
+                    DO $$ BEGIN
+                        ALTER TABLE daily_work_item_segments
+                        ADD CONSTRAINT daily_work_item_segments_pile_field_id_fkey
+                        FOREIGN KEY (pile_field_id) REFERENCES pile_fields(id);
+                    EXCEPTION WHEN duplicate_object THEN NULL; END $$
+                """)
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_daily_work_item_segments_pile_field_id
+                    ON daily_work_item_segments(pile_field_id)
+                """)
+                cur.execute("""
+                    ALTER TABLE daily_work_items
+                    ALTER COLUMN object_id DROP NOT NULL
+                """)
+                cur.execute("""
+                    ALTER TABLE work_types
+                    ADD COLUMN IF NOT EXISTS productivity_enabled BOOLEAN NOT NULL DEFAULT true
+                """)
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS project_work_item_segments (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        project_work_item_id UUID NOT NULL REFERENCES project_work_items(id) ON DELETE CASCADE,
+                        pk_start NUMERIC NOT NULL,
+                        pk_end NUMERIC NOT NULL,
+                        pk_raw_text TEXT,
+                        volume_segment NUMERIC,
+                        comment TEXT,
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        UNIQUE (project_work_item_id, pk_start, pk_end)
+                    )
+                """)
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_project_work_item_segments_item
+                    ON project_work_item_segments(project_work_item_id)
+                """)
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_project_work_item_segments_pk
+                    ON project_work_item_segments(pk_start, pk_end)
+                """)
+                cur.execute("""
+                    ALTER TABLE project_work_item_segments
+                    ADD COLUMN IF NOT EXISTS pk_raw_text TEXT
+                """)
+                cur.execute("""
+                    ALTER TABLE project_work_item_segments
+                    ADD COLUMN IF NOT EXISTS volume_segment NUMERIC
+                """)
+                cur.execute("""
+                    DO $$ BEGIN
+                        IF EXISTS (
+                            SELECT 1
+                            FROM information_schema.columns
+                            WHERE table_name = 'project_work_item_segments'
+                              AND column_name = 'project_volume_segment'
+                        ) THEN
+                            UPDATE project_work_item_segments
+                            SET volume_segment = project_volume_segment
+                            WHERE volume_segment IS NULL;
+                        END IF;
+                    END $$;
+                """)
+                cur.execute("""
+                    ALTER TABLE project_work_item_segments
+                    DROP COLUMN IF EXISTS project_volume_segment
+                """)
     finally:
         conn.close()
 

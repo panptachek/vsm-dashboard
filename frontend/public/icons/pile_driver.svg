@@ -1,23 +1,20 @@
-<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
-  <title id="title">Pile driver / Сваебойная установка icon</title>
-  <desc id="desc">Minimal construction machinery SVG icon: Pile driver / Сваебойная установка.</desc>
-  <style>
-  .main{fill:none;stroke:#111827;stroke-width:8;stroke-linecap:round;stroke-linejoin:round;}
-  .accent{fill:none;stroke:#C91F2E;stroke-width:8;stroke-linecap:round;stroke-linejoin:round;}
-  .soft{fill:#F3F4F6;stroke:#111827;stroke-width:8;stroke-linecap:round;stroke-linejoin:round;}
-</style>
-  
-  <path class="accent" d="M47 182h122"/>
-  <rect class="soft" x="42" y="165" width="132" height="35" rx="17.5"/>
-  <path class="main" d="M66 200h84"/>
-  <path class="soft" d="M67 126h65c18 0 33 15 33 33v6H56v-28c0-6 5-11 11-11Z"/>
-  <path class="main" d="M101 126v39M132 126l22 39"/>
-  <path class="accent" d="M178 48v137"/>
-  <path class="main" d="M158 57h40M158 82h40M158 107h40M158 132h40"/>
-  <path class="main" d="M178 48l-27 117"/>
-  <rect class="soft" x="201" y="68" width="24" height="52" rx="6"/>
-  <path class="main" d="M213 120v82"/>
-  <path class="accent" d="M196 202h34"/>
-
+  <title id="title">Pile driver</title>
+  <desc id="desc">Industrial pile driver rig with track base, body, mast and hammer block.</desc>
+  <g fill="none" stroke="#1a1a1a" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+    <path fill="#f4f4f5" d="M37 169h113l18 17-18 17H37l-18-17z"/>
+    <circle cx="61" cy="186" r="10" fill="#1a1a1a"/>
+    <circle cx="94" cy="186" r="10" fill="#1a1a1a"/>
+    <circle cx="127" cy="186" r="10" fill="#1a1a1a"/>
+    <path fill="#ffffff" d="M70 119h58l31 50H51z"/>
+    <path d="M93 119V60"/>
+    <path d="M93 60h74"/>
+    <path d="M167 60v137"/>
+    <path d="M151 76h32"/>
+    <path d="M151 121h32"/>
+    <path fill="#e5e7eb" d="M148 85h38v35h-38z"/>
+    <path d="M41 169h116"/>
+    <path d="M41 203h116"/>
+  </g>
+  <path d="M63 151h86l11 18H52z" fill="#7c3aed"/>
 </svg>

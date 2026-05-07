@@ -44,6 +44,29 @@ EDITABLE_TABLES: dict[str, str] = {
     "stockpile_balance_snapshots": "Остатки накопителей",
 }
 
+READONLY_TABLES: dict[str, str] = {
+    "constructive_work_types": "Связи конструктивы-работы",
+    "daily_report_parse_candidates": "Кандидаты парсинга отчетов",
+    "daily_report_personnel": "Персонал отчетов",
+    "daily_report_problems": "Проблемы отчетов",
+    "equipment_norms_config": "Настройки норм техники",
+    "equipment_productivity_norms": "Нормы производительности техники",
+    "material_movement_equipment_usage": "Техника по перевозкам",
+    "object_types": "Типы объектов",
+    "pile_fields": "Свайные поля",
+    "pile_plan_periods": "Проект свай по периодам",
+    "project_work_items": "Проектные объемы работ",
+    "project_work_item_segments": "Попикетные проектные объемы",
+    "route_pickets": "Пикеты основного хода",
+    "temp_road_points": "Точки ВАД",
+    "temporary_road_import_drafts": "Черновики импорта ВАД",
+    "temporary_road_import_runs": "Запуски импорта ВАД",
+    "temporary_road_pk_mappings": "Мэппинг пикетов ВАД",
+    "temporary_road_state_corrections": "Коррекции статусов ВАД",
+}
+
+EXPOSED_TABLES: dict[str, str] = {**EDITABLE_TABLES, **READONLY_TABLES}
+
 SYSTEM_COLUMNS = {"created_at", "updated_at", "approved_at"}
 
 
@@ -79,8 +102,9 @@ def _json_safe(value: Any) -> Any:
     return value
 
 
-def _allowed_table(table: str) -> None:
-    if table not in EDITABLE_TABLES:
+def _allowed_table(table: str, *, require_editable: bool = False) -> None:
+    allowed = EDITABLE_TABLES if require_editable else EXPOSED_TABLES
+    if table not in allowed:
         raise HTTPException(status_code=404, detail="Table is not exposed for dashboard editing")
 
 
@@ -254,7 +278,7 @@ def _ensure_audit_table(cur) -> None:
 
 
 def _validate(cur, table: str, request: ChangeRequest) -> dict[str, Any]:
-    _allowed_table(table)
+    _allowed_table(table, require_editable=True)
     if not _table_exists(cur, table):
         raise HTTPException(status_code=404, detail="Table does not exist")
 
@@ -352,11 +376,16 @@ def _validate(cur, table: str, request: ChangeRequest) -> dict[str, Any]:
 def list_tables():
     with _db_cursor() as (conn, cur):
         rows = []
-        for table, label in EDITABLE_TABLES.items():
+        for table, label in EXPOSED_TABLES.items():
             if not _table_exists(cur, table):
                 continue
             cur.execute(sql.SQL("SELECT COUNT(*) AS cnt FROM {}").format(sql.Identifier(table)))
-            rows.append({"name": table, "label": label, "rows": int(cur.fetchone()["cnt"]), "editable": True})
+            rows.append({
+                "name": table,
+                "label": label,
+                "rows": int(cur.fetchone()["cnt"]),
+                "editable": table in EDITABLE_TABLES,
+            })
         return {"tables": rows}
 
 
@@ -368,7 +397,7 @@ def table_schema(table: str):
             raise HTTPException(status_code=404, detail="Table does not exist")
         return {
             "table": table,
-            "label": EDITABLE_TABLES[table],
+            "label": EXPOSED_TABLES[table],
             "primary_key": _primary_key(cur, table),
             "columns": _columns(cur, table),
             "foreign_keys": _foreign_keys(cur, table),
@@ -484,7 +513,7 @@ def validate_change(table: str, request: ChangeRequest):
 def apply_change(table: str, request: ChangeRequest):
     if not request.confirmed:
         raise HTTPException(status_code=400, detail="confirmed=true is required")
-    _allowed_table(table)
+    _allowed_table(table, require_editable=True)
     with _db_cursor() as (conn, cur):
         result = _validate(cur, table, request)
         if not result["ok"]:

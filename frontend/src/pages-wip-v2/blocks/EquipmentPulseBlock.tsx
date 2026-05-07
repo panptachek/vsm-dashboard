@@ -154,10 +154,10 @@ function PulseCard({
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
-              className="grid grid-cols-[86px_minmax(0,1fr)_56px] items-center gap-2"
+              className="grid grid-cols-[112px_minmax(0,1fr)_56px] items-center gap-2"
             >
-              <div>
-                <div className="text-[12px] font-semibold text-text-primary leading-tight">{category.label}</div>
+              <div className="min-w-0">
+                <div className="whitespace-nowrap text-[11px] font-semibold leading-none text-text-primary">{category.label}</div>
                 <div className="text-[10px] text-text-muted font-mono">{category.short}</div>
               </div>
               <AssemblyRail level={level} tone={status} />

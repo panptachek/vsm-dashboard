@@ -30,7 +30,8 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip as RCTooltip, ResponsiveContainer,
   CartesianGrid, ComposedChart, Line,
 } from 'recharts'
-import { PeriodBar, usePeriod } from './PeriodBar'
+import { PeriodBar } from './PeriodBar'
+import { usePeriod } from './usePeriod'
 import { sectionCodeToUILabel } from '../lib/sections'
 import { EquipmentBlock } from './blocks/EquipmentBlock'
 import { SparkHeatBlock } from './blocks/SparkHeatBlock'
@@ -76,13 +77,11 @@ function fmt(n: number): string { return Math.round(n).toLocaleString('ru-RU') }
 
 function mergeSections(bySection: Record<string, number>): { label: string; code: string; value: number }[] {
   const out: { label: string; code: string; value: number }[] = []
-  let s3 = 0
   const codes = ['UCH_1','UCH_2','UCH_3','UCH_4','UCH_5','UCH_6','UCH_7','UCH_8']
   for (const c of codes) {
     const v = bySection[c] || 0
     out.push({ label: sectionCodeToUILabel(c).replace('Участок №', '№'), code: c, value: v })
   }
-  void s3
   return out
 }
 
@@ -221,7 +220,6 @@ function CategoryCard({
 
   const pct = api.plan > 0 ? Math.min(100, api.fact / api.plan * 100) : 0
   const sections = mergeSections(api.by_section)
-  const secMax = Math.max(1, ...sections.map(s => s.value))
 
   // Донат «По карьерам» оставляем только для «Перевозка (всего)» — там это
   // имеет прямой смысл. Для отсыпки/ЩПС/щебня факт виден в главном числе
@@ -398,14 +396,19 @@ function QuarryDonut({
   }
 
   const R = 44, r = 28, cx = 60, cy = 60
-  let offset = 0
   const palette = ['#1a1a1a','#dc2626','#7f1d1d','#525252','#a3a3a3','#f59e0b','#737373','#262626','#9a3412','#b45309','#115e59','#7c2d12']
-  const segments = data.rows.map((row, i) => {
-    const a = (row.volume / data.total) * 360
-    const start = offset
-    offset += a
-    return { ...row, start, end: offset, color: palette[i % palette.length] }
-  })
+  const segments = data.rows.reduce<{
+    offset: number
+    items: ({ start: number; end: number; color: string } & typeof data.rows[number])[]
+  }>((acc, row, i) => {
+    const a = data.total > 0 ? (row.volume / data.total) * 360 : 0
+    const start = acc.offset
+    const end = start + a
+    return {
+      offset: end,
+      items: [...acc.items, { ...row, start, end, color: palette[i % palette.length] }],
+    }
+  }, { offset: 0, items: [] }).items
 
   return (
     <div className="flex items-start gap-3">
@@ -564,7 +567,6 @@ function PilesComposedChart({ from, to, secFilter }: { from: string; to: string;
   const rows = codes.map(c => {
     const d = byCode[c] ?? { main: 0, test: 0 }
     // % факта от условного плана = 100% для визуализации линии плана
-    const total = d.main + d.test
     return {
       name: c.replace('UCH_', '№'),
       'Факт осн.': Math.round(d.main / maxVal * 100),

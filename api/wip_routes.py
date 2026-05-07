@@ -25,17 +25,27 @@ router = APIRouter(prefix="/api/wip", tags=["wip"])
 # ── helpers ──────────────────────────────────────────────────────────────
 
 def _expand_sections(section: Optional[str]) -> Optional[list[str]]:
-    """'UCH_1,UCH_2' → ['UCH_1','UCH_2']. После миграции 24.04.2026 UCH_3 — один
-    код, поэтому спец-раскрытие UCH_31/UCH_32 больше не нужно."""
+    """'UCH_1,UCH_2' → ['UCH_1','UCH_2'].
+
+    UCH_31/UCH_32 are historical slices of UCH_3. Keep accepting both forms so
+    old imported plans/facts are counted together with the current UCH_3 code.
+    """
     if not section or section == "all":
         return None
     codes = [c.strip() for c in section.split(",") if c.strip()]
-    return codes or None
+    expanded: list[str] = []
+    for code in codes:
+        if code == "UCH_3":
+            expanded.extend(["UCH_3", "UCH_31", "UCH_32"])
+        else:
+            expanded.append(code)
+    return list(dict.fromkeys(expanded)) or None
 
 
 def _merge_section(code: Optional[str]) -> Optional[str]:
-    """No-op. Исторически сворачивал UCH_31/UCH_32 в UCH_3; после миграции
-    24.04.2026 все данные уже под UCH_3."""
+    """Collapse historical UCH_31/UCH_32 codes into display section UCH_3."""
+    if code in ("UCH_31", "UCH_32"):
+        return "UCH_3"
     return code
 
 
@@ -474,47 +484,357 @@ def piles(
         r["pk_end"] = float(r["pk_end"]) if r["pk_end"] is not None else None
         r["section_code"] = _merge_section(r.get("section_code")) or r.get("section_code")
 
-    # Факт забивки свай за период — из daily_work_items по PILE_* work_types
-    d_from, d_to = _parse_range(date_from, date_to)
-    where_dwi = ["dwi.report_date >= %s", "dwi.report_date <= %s"]
-    p_dwi: list = [d_from, d_to]
-    if codes:
-        where_dwi.append("cs.code = ANY(%s)")
-        p_dwi.append(codes)
-    fact_rows = query(
-        f"""
-        SELECT cs.code AS section_code, wt.code AS wt_code,
-               SUM(dwi.volume)::numeric AS cnt
-        FROM daily_work_items dwi
-        JOIN work_types wt ON wt.id = dwi.work_type_id
-        LEFT JOIN construction_sections cs ON cs.id = dwi.section_id
-        WHERE {' AND '.join(where_dwi)}
-          AND wt.code IN ('PILE_MAIN', 'PILE_TRIAL', 'PILE_DYNTEST')
-        GROUP BY cs.code, wt.code
-        """,
-        p_dwi,
-    )
-    fact_by_sec: dict[str, dict[str, float]] = {}
-    for f in fact_rows:
-        sec = _merge_section(f["section_code"]) or "—"
-        fact_by_sec.setdefault(sec, {"main": 0.0, "test": 0.0, "dyn": 0.0})
-        if f["wt_code"] == "PILE_MAIN":
-            fact_by_sec[sec]["main"] += float(f["cnt"] or 0)
-        elif f["wt_code"] == "PILE_TRIAL":
-            fact_by_sec[sec]["test"] += float(f["cnt"] or 0)
-        elif f["wt_code"] == "PILE_DYNTEST":
-            fact_by_sec[sec]["dyn"] += float(f["cnt"] or 0)
+    def _pile_fact_rows(from_date: date_cls, to_date: date_cls) -> tuple[dict[str, dict[str, float]], dict[str, float]]:
+        where_dwi = ["dwi.report_date >= %s", "dwi.report_date <= %s"]
+        p_dwi: list = [from_date, to_date]
+        if codes:
+            where_dwi.append("cs.code = ANY(%s)")
+            p_dwi.append(codes)
+        fact_rows = query(
+            f"""
+            SELECT cs.code AS section_code, wt.code AS wt_code,
+                   SUM(dwi.volume)::numeric AS cnt
+            FROM daily_work_items dwi
+            JOIN work_types wt ON wt.id = dwi.work_type_id
+            LEFT JOIN construction_sections cs ON cs.id = dwi.section_id
+            WHERE {' AND '.join(where_dwi)}
+              AND wt.code IN ('PILE_MAIN', 'PILE_TRIAL', 'PILE_DYNTEST')
+            GROUP BY cs.code, wt.code
+            """,
+            p_dwi,
+        )
+        by_sec: dict[str, dict[str, float]] = {}
+        for f in fact_rows:
+            sec = _merge_section(f["section_code"]) or "—"
+            by_sec.setdefault(sec, {"main": 0.0, "test": 0.0, "dyn": 0.0})
+            if f["wt_code"] == "PILE_MAIN":
+                by_sec[sec]["main"] += float(f["cnt"] or 0)
+            elif f["wt_code"] == "PILE_TRIAL":
+                by_sec[sec]["test"] += float(f["cnt"] or 0)
+            elif f["wt_code"] == "PILE_DYNTEST":
+                by_sec[sec]["dyn"] += float(f["cnt"] or 0)
 
-    fact_totals = {"main": 0.0, "test": 0.0, "dyn": 0.0}
-    for sec_facts in fact_by_sec.values():
-        for k, v in sec_facts.items():
-            fact_totals[k] += v
+        totals = {"main": 0.0, "test": 0.0, "dyn": 0.0}
+        for sec_facts in by_sec.values():
+            for k, v in sec_facts.items():
+                totals[k] += v
+        return by_sec, totals
+
+    # Факт забивки свай за период — из daily_work_items по PILE_* work_types.
+    d_from, d_to = _parse_range(date_from, date_to)
+    fact_by_sec, fact_totals = _pile_fact_rows(d_from, d_to)
+    cumulative_by_sec, cumulative_totals = _pile_fact_rows(date_cls(2020, 1, 1), d_to)
 
     return {
         "rows": rows,
         "fact_by_section": fact_by_sec,
         "fact_totals": fact_totals,
+        "cumulative_by_section": cumulative_by_sec,
+        "cumulative_totals": cumulative_totals,
         "period": {"from": d_from.isoformat(), "to": d_to.isoformat()},
+    }
+
+
+@router.get("/reinforcement-sections/summary")
+def reinforcement_sections_summary(
+    date: Optional[str] = None,
+    mode: str = "cumulative",
+):
+    """Участки усиления: факт забивки свай + календарный план из pile_plan_periods."""
+    as_of = date_cls.fromisoformat(date) if date else date_cls.today()
+    if mode not in ("cumulative", "date"):
+        raise HTTPException(400, "mode должен быть cumulative|date")
+
+    month_start = as_of.replace(day=1)
+    next_month = (
+        month_start.replace(year=month_start.year + 1, month=1)
+        if month_start.month == 12
+        else month_start.replace(month=month_start.month + 1)
+    )
+    month_end = next_month - timedelta(days=1)
+    section_codes = [f"UCH_{i}" for i in range(1, 9)]
+    query_section_codes = ["UCH_1", "UCH_2", "UCH_3", "UCH_31", "UCH_32", "UCH_4", "UCH_5", "UCH_6", "UCH_7", "UCH_8"]
+
+    kpi_where = ["wt.code IN ('PILE_MAIN', 'PILE_TRIAL', 'PILE_DYNTEST')", "cs.code = ANY(%s)"]
+    kpi_params: list = [query_section_codes]
+    if mode == "date":
+        kpi_where.append("dwi.report_date = %s")
+        kpi_params.append(as_of)
+    else:
+        kpi_where.append("dwi.report_date <= %s")
+        kpi_params.append(as_of)
+    kpi_rows = query(
+        f"""
+        SELECT cs.code AS section_code, wt.code AS wt_code, SUM(dwi.volume)::numeric AS cnt
+        FROM daily_work_items dwi
+        JOIN work_types wt ON wt.id = dwi.work_type_id
+        LEFT JOIN construction_sections cs ON cs.id = dwi.section_id
+        WHERE {' AND '.join(kpi_where)}
+        GROUP BY cs.code, wt.code
+        """,
+        kpi_params,
+    )
+    by_section: dict[str, dict[str, float]] = {code: {"main": 0.0, "test": 0.0, "dyn": 0.0} for code in section_codes}
+    for row in kpi_rows:
+        code = _merge_section(row.get("section_code")) or ""
+        if code not in by_section:
+            continue
+        if row.get("wt_code") == "PILE_TRIAL":
+            key = "test"
+        elif row.get("wt_code") == "PILE_DYNTEST":
+            key = "dyn"
+        else:
+            key = "main"
+        by_section[code][key] += float(row.get("cnt") or 0)
+
+    plan_by_section: dict[str, dict[str, float]] = {code: {"main": 0.0, "test": 0.0, "dyn": 0.0} for code in section_codes}
+    if mode == "date":
+        plan_rows = query(
+            """
+            SELECT cs.code AS section_code,
+                   SUM(COALESCE(ppp.planned_main_piles, 0)::numeric
+                       / GREATEST((ppp.period_end - ppp.period_start + 1), 1)) AS main_cnt,
+                   SUM(COALESCE(ppp.planned_test_piles, 0)::numeric
+                       / GREATEST((ppp.period_end - ppp.period_start + 1), 1)) AS test_cnt,
+                   SUM(COALESCE(ppp.planned_dynamic_tests, 0)::numeric
+                       / GREATEST((ppp.period_end - ppp.period_start + 1), 1)) AS dyn_cnt
+            FROM pile_plan_periods ppp
+            JOIN construction_sections cs ON cs.id = ppp.section_id
+            WHERE cs.code = ANY(%s)
+              AND ppp.period_start <= %s
+              AND ppp.period_end >= %s
+            GROUP BY cs.code
+            """,
+            [query_section_codes, as_of, as_of],
+        )
+    else:
+        plan_rows = query(
+            """
+            SELECT cs.code AS section_code,
+                   SUM(COALESCE(ppp.planned_main_piles, 0)::numeric
+                       * GREATEST((LEAST(ppp.period_end, %s::date) - ppp.period_start + 1), 0)::numeric
+                       / GREATEST((ppp.period_end - ppp.period_start + 1), 1)) AS main_cnt,
+                   SUM(COALESCE(ppp.planned_test_piles, 0)::numeric
+                       * GREATEST((LEAST(ppp.period_end, %s::date) - ppp.period_start + 1), 0)::numeric
+                       / GREATEST((ppp.period_end - ppp.period_start + 1), 1)) AS test_cnt,
+                   SUM(COALESCE(ppp.planned_dynamic_tests, 0)::numeric
+                       * GREATEST((LEAST(ppp.period_end, %s::date) - ppp.period_start + 1), 0)::numeric
+                       / GREATEST((ppp.period_end - ppp.period_start + 1), 1)) AS dyn_cnt
+            FROM pile_plan_periods ppp
+            JOIN construction_sections cs ON cs.id = ppp.section_id
+            WHERE cs.code = ANY(%s)
+              AND ppp.period_start <= %s
+            GROUP BY cs.code
+            """,
+            [as_of, as_of, as_of, query_section_codes, as_of],
+        )
+    for row in plan_rows:
+        code = _merge_section(row.get("section_code")) or ""
+        if code not in plan_by_section:
+            continue
+        plan_by_section[code]["main"] += float(row.get("main_cnt") or 0)
+        plan_by_section[code]["test"] += float(row.get("test_cnt") or 0)
+        plan_by_section[code]["dyn"] += float(row.get("dyn_cnt") or 0)
+
+    days = [(month_start + timedelta(days=i)).isoformat() for i in range((month_end - month_start).days + 1)]
+    matrix: dict[str, dict[str, dict[str, float]]] = {
+        code: {
+            day: {
+                "main": 0.0,
+                "test": 0.0,
+                "dyn": 0.0,
+                "total": 0.0,
+                "plan_main": 0.0,
+                "plan_test": 0.0,
+                "plan_dyn": 0.0,
+                "plan_total": 0.0,
+            }
+            for day in days
+        }
+        for code in section_codes
+    }
+    calendar_rows = query(
+        """
+        SELECT cs.code AS section_code, dwi.report_date AS d, wt.code AS wt_code, SUM(dwi.volume)::numeric AS cnt
+        FROM daily_work_items dwi
+        JOIN work_types wt ON wt.id = dwi.work_type_id
+        LEFT JOIN construction_sections cs ON cs.id = dwi.section_id
+        WHERE wt.code IN ('PILE_MAIN', 'PILE_TRIAL', 'PILE_DYNTEST')
+          AND cs.code = ANY(%s)
+          AND dwi.report_date BETWEEN %s AND %s
+        GROUP BY cs.code, dwi.report_date, wt.code
+        """,
+        [query_section_codes, month_start, month_end],
+    )
+    for row in calendar_rows:
+        code = _merge_section(row.get("section_code")) or ""
+        day = row.get("d").isoformat()
+        if code not in matrix or day not in matrix[code]:
+            continue
+        if row.get("wt_code") == "PILE_TRIAL":
+            key = "test"
+        elif row.get("wt_code") == "PILE_DYNTEST":
+            key = "dyn"
+        else:
+            key = "main"
+        cnt = float(row.get("cnt") or 0)
+        matrix[code][day][key] += cnt
+        matrix[code][day]["total"] += cnt
+
+    calendar_plan_rows = query(
+        """
+        SELECT cs.code AS section_code, gs.day::date AS d,
+               SUM(COALESCE(ppp.planned_main_piles, 0)::numeric
+                   / GREATEST((ppp.period_end - ppp.period_start + 1), 1)) AS main_cnt,
+               SUM(COALESCE(ppp.planned_test_piles, 0)::numeric
+                   / GREATEST((ppp.period_end - ppp.period_start + 1), 1)) AS test_cnt,
+               SUM(COALESCE(ppp.planned_dynamic_tests, 0)::numeric
+                   / GREATEST((ppp.period_end - ppp.period_start + 1), 1)) AS dyn_cnt
+        FROM pile_plan_periods ppp
+        JOIN construction_sections cs ON cs.id = ppp.section_id
+        JOIN LATERAL generate_series(
+            GREATEST(ppp.period_start, %s::date),
+            LEAST(ppp.period_end, %s::date),
+            interval '1 day'
+        ) AS gs(day) ON true
+        WHERE cs.code = ANY(%s)
+          AND ppp.period_start <= %s
+          AND ppp.period_end >= %s
+        GROUP BY cs.code, gs.day::date
+        """,
+        [month_start, month_end, query_section_codes, month_end, month_start],
+    )
+    for row in calendar_plan_rows:
+        code = _merge_section(row.get("section_code")) or ""
+        day = row.get("d").isoformat()
+        if code not in matrix or day not in matrix[code]:
+            continue
+        main_plan = float(row.get("main_cnt") or 0)
+        test_plan = float(row.get("test_cnt") or 0)
+        dyn_plan = float(row.get("dyn_cnt") or 0)
+        matrix[code][day]["plan_main"] += main_plan
+        matrix[code][day]["plan_test"] += test_plan
+        matrix[code][day]["plan_dyn"] += dyn_plan
+        matrix[code][day]["plan_total"] += main_plan + test_plan + dyn_plan
+
+    dynamic_days = [(as_of + timedelta(days=delta)).isoformat() for delta in (-2, -1, 0, 1)]
+    dyn: dict[str, dict[str, float]] = {day: {code: 0.0 for code in section_codes} for day in dynamic_days}
+    dyn_plan: dict[str, float] = {day: 0.0 for day in dynamic_days}
+    dyn_rows = query(
+        """
+        SELECT cs.code AS section_code, dwi.report_date AS d, SUM(dwi.volume)::numeric AS cnt
+        FROM daily_work_items dwi
+        JOIN work_types wt ON wt.id = dwi.work_type_id
+        LEFT JOIN construction_sections cs ON cs.id = dwi.section_id
+        WHERE wt.code IN ('PILE_MAIN', 'PILE_TRIAL', 'PILE_DYNTEST')
+          AND cs.code = ANY(%s)
+          AND dwi.report_date BETWEEN %s AND %s
+        GROUP BY cs.code, dwi.report_date
+        """,
+        [query_section_codes, dynamic_days[0], dynamic_days[-1]],
+    )
+    for row in dyn_rows:
+        code = _merge_section(row.get("section_code")) or ""
+        day = row.get("d").isoformat()
+        if day in dyn and code in dyn[day]:
+            dyn[day][code] += float(row.get("cnt") or 0)
+
+    dyn_plan_rows = query(
+        """
+        SELECT gs.day::date AS d,
+               SUM((COALESCE(ppp.planned_main_piles, 0)
+                    + COALESCE(ppp.planned_test_piles, 0)
+                    + COALESCE(ppp.planned_dynamic_tests, 0))::numeric
+                   / GREATEST((ppp.period_end - ppp.period_start + 1), 1)) AS cnt
+        FROM pile_plan_periods ppp
+        JOIN construction_sections cs ON cs.id = ppp.section_id
+        JOIN LATERAL generate_series(
+            GREATEST(ppp.period_start, %s::date),
+            LEAST(ppp.period_end, %s::date),
+            interval '1 day'
+        ) AS gs(day) ON true
+        WHERE cs.code = ANY(%s)
+          AND ppp.period_start <= %s
+          AND ppp.period_end >= %s
+        GROUP BY gs.day::date
+        """,
+        [dynamic_days[0], dynamic_days[-1], query_section_codes, dynamic_days[-1], dynamic_days[0]],
+    )
+    for row in dyn_plan_rows:
+        day = row.get("d").isoformat()
+        if day in dyn_plan:
+            dyn_plan[day] = float(row.get("cnt") or 0)
+
+    month_plan_by_section = {
+        code: {
+            "main": sum(matrix[code][day]["plan_main"] for day in days),
+            "test": sum(matrix[code][day]["plan_test"] for day in days),
+            "dyn": sum(matrix[code][day]["plan_dyn"] for day in days),
+        }
+        for code in section_codes
+    }
+
+    sections = []
+    for idx, code in enumerate(section_codes, start=1):
+        main = by_section[code]["main"]
+        test = by_section[code]["test"]
+        dyn_fact = by_section[code]["dyn"]
+        plan_main = plan_by_section[code]["main"]
+        plan_test = plan_by_section[code]["test"]
+        plan_dyn = plan_by_section[code]["dyn"]
+        month_plan_main = month_plan_by_section[code]["main"]
+        month_plan_test = month_plan_by_section[code]["test"]
+        month_plan_dyn = month_plan_by_section[code]["dyn"]
+        total = main + test + dyn_fact
+        plan_total = plan_main + plan_test + plan_dyn
+        month_plan_total = month_plan_main + month_plan_test + month_plan_dyn
+        sections.append({
+            "code": code,
+            "label": f"Участок №{idx}",
+            "main": main,
+            "test": test,
+            "dyn": dyn_fact,
+            "total": total,
+            "plan_main": plan_main,
+            "plan_test": plan_test,
+            "plan_dyn": plan_dyn,
+            "plan_total": plan_total,
+            "month_plan_main": month_plan_main,
+            "month_plan_test": month_plan_test,
+            "month_plan_dyn": month_plan_dyn,
+            "month_plan_total": month_plan_total,
+            "delta": total - plan_total,
+            "month_delta": total - month_plan_total,
+        })
+    totals_by_day = {
+        day: {
+            "main": sum(matrix[code][day]["main"] for code in section_codes),
+            "test": sum(matrix[code][day]["test"] for code in section_codes),
+            "dyn": sum(matrix[code][day]["dyn"] for code in section_codes),
+            "total": sum(matrix[code][day]["total"] for code in section_codes),
+            "plan_main": sum(matrix[code][day]["plan_main"] for code in section_codes),
+            "plan_test": sum(matrix[code][day]["plan_test"] for code in section_codes),
+            "plan_dyn": sum(matrix[code][day]["plan_dyn"] for code in section_codes),
+            "plan_total": sum(matrix[code][day]["plan_total"] for code in section_codes),
+        }
+        for day in days
+    }
+
+    return {
+        "date": as_of.isoformat(),
+        "mode": mode,
+        "plan_available": any(s["plan_total"] > 0 or s["month_plan_total"] > 0 for s in sections),
+        "sections": sections,
+        "calendar": {
+            "month": month_start.strftime("%Y-%m"),
+            "days": days,
+            "rows": [{"code": code, "label": f"Участок №{i}", "days": matrix[code]} for i, code in enumerate(section_codes, start=1)],
+            "totals_by_day": totals_by_day,
+        },
+        "dynamic": [
+            {"date": day, "plan": dyn_plan[day], "by_section": dyn[day], "total": sum(dyn[day].values())}
+            for day in dynamic_days
+        ],
     }
 
 
@@ -781,6 +1101,57 @@ def _ensure_settings_tables() -> None:
                         notes TEXT,
                         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
                     )
+                """)
+                cur.execute("""
+                    ALTER TABLE work_types
+                    ADD COLUMN IF NOT EXISTS productivity_enabled BOOLEAN NOT NULL DEFAULT true
+                """)
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS project_work_item_segments (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        project_work_item_id UUID NOT NULL REFERENCES project_work_items(id) ON DELETE CASCADE,
+                        pk_start NUMERIC NOT NULL,
+                        pk_end NUMERIC NOT NULL,
+                        pk_raw_text TEXT,
+                        volume_segment NUMERIC,
+                        comment TEXT,
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        UNIQUE (project_work_item_id, pk_start, pk_end)
+                    )
+                """)
+                cur.execute("""
+                    ALTER TABLE project_work_item_segments
+                    ADD COLUMN IF NOT EXISTS pk_raw_text TEXT
+                """)
+                cur.execute("""
+                    ALTER TABLE project_work_item_segments
+                    ADD COLUMN IF NOT EXISTS volume_segment NUMERIC
+                """)
+                cur.execute("""
+                    DO $$ BEGIN
+                        IF EXISTS (
+                            SELECT 1
+                            FROM information_schema.columns
+                            WHERE table_name = 'project_work_item_segments'
+                              AND column_name = 'project_volume_segment'
+                        ) THEN
+                            UPDATE project_work_item_segments
+                            SET volume_segment = project_volume_segment
+                            WHERE volume_segment IS NULL;
+                        END IF;
+                    END $$;
+                """)
+                cur.execute("""
+                    ALTER TABLE project_work_item_segments
+                    DROP COLUMN IF EXISTS project_volume_segment
+                """)
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_project_work_item_segments_item
+                    ON project_work_item_segments(project_work_item_id)
+                """)
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_project_work_item_segments_pk
+                    ON project_work_item_segments(pk_start, pk_end)
                 """)
     finally:
         conn.close()
@@ -1103,7 +1474,10 @@ def equipment_productivity(
         units_by_shift.setdefault((sec, et), {})[(r["report_date"], r["shift"])] = int(r["units"] or 0)
 
     # 2. Факт per (section × date × shift × work_type).
-    where_dwi = ["dwi.report_date BETWEEN %s AND %s"]
+    where_dwi = [
+        "dwi.report_date BETWEEN %s AND %s",
+        "COALESCE(wt.productivity_enabled, true) = true",
+    ]
     params_dwi: list = [d_from, d_to]
     if codes:
         where_dwi.append("cs.code = ANY(%s)")
@@ -1529,6 +1903,7 @@ def _mechanization_units_impl(d_from, d_to, ownership: Optional[str] = None):
         JOIN work_types wt ON wt.id = dwi.work_type_id
         LEFT JOIN construction_sections cs ON cs.id = dwi.section_id
         WHERE dwi.report_date BETWEEN %s AND %s
+          AND COALESCE(wt.productivity_enabled, true) = true
         """,
         [d_from, d_to],
     )
@@ -2061,6 +2436,23 @@ _NORM_CODE_PREFIX_FALLBACK: dict[str, str] = {
 }
 
 
+def _work_type_productivity_flags(codes: list[str]) -> dict[str, bool]:
+    if not codes:
+        return {}
+    try:
+        rows = query(
+            """
+            SELECT code, COALESCE(productivity_enabled, true) AS productivity_enabled
+            FROM work_types
+            WHERE code = ANY(%s)
+            """,
+            [codes],
+        )
+    except Exception:
+        return {}
+    return {str(r["code"]): bool(r.get("productivity_enabled", True)) for r in rows}
+
+
 def _resolve_work_name(wt_code: str, norm_code: Optional[str]) -> str:
     """Вернёт человекочитаемое название: work_types.name либо fallback по префиксу norm_code."""
     try:
@@ -2085,6 +2477,7 @@ def get_settings_norms():
     except Exception:
         pass
     data = load_norms_from_db()
+    productivity_flags = _work_type_productivity_flags([wt for (_, wt) in data["work_types"].keys()])
     work_types = [
         {
             "equipment_type": et,
@@ -2093,6 +2486,7 @@ def get_settings_norms():
             "norm": float(spec.get("norm") or 0),
             "unit": spec.get("unit"),
             "code": spec.get("code"),
+            "productivity_enabled": productivity_flags.get(wt, True),
         }
         for (et, wt), spec in sorted(data["work_types"].items())
     ]
@@ -2156,6 +2550,15 @@ def patch_settings_norms(body: NormsPatchBody):
                             """,
                             (json.dumps(key), json.dumps(value), updated_by),
                         )
+                        if "productivity_enabled" in row:
+                            cur.execute(
+                                """
+                                UPDATE work_types
+                                SET productivity_enabled = %s
+                                WHERE code = %s
+                                """,
+                                (bool(row.get("productivity_enabled")), wt),
+                            )
                 for cat, rows in (("sand_pit", body.sand_pit), ("sand_stockpile", body.sand_stockpile)):
                     if rows is None:
                         continue
@@ -2206,7 +2609,7 @@ def patch_settings_norms(body: NormsPatchBody):
 
 # ── aliases CRUD ──────────────────────────────────────────────────────────
 
-_ALIAS_KINDS = {"work_type", "material", "constructive"}
+_ALIAS_KINDS = {"work_type", "material", "constructive", "object"}
 
 
 class AliasCreateBody(BaseModel):

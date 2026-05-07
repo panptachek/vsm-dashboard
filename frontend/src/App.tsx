@@ -7,6 +7,7 @@ const OverviewFinal = lazy(() => import('./pages-wip-v2/OverviewFinal'))
 const AnalyticsFinal = lazy(() => import('./pages-wip-v2/AnalyticsFinal'))
 const MapV3 = lazy(() => import('./pages-wip-v2/MapV3'))
 const MechanizationPage = lazy(() => import('./pages-wip-v2/MechanizationPage'))
+const ReinforcementSectionsPage = lazy(() => import('./pages-wip-v2/ReinforcementSectionsBoard'))
 const ReportsPage = lazy(() => import('./pages-wip-v2/ReportsPage'))
 const DatabasePage = lazy(() => import('./pages-wip-v2/DatabasePage'))
 const SettingsPage = lazy(() => import('./pages-wip-v2/SettingsPage'))
@@ -31,6 +32,7 @@ export default function App() {
             <Route path="/map" element={<Suspense fallback={<Fallback />}><MapV3 /></Suspense>} />
             <Route path="/analytics" element={<Suspense fallback={<Fallback />}><AnalyticsFinal /></Suspense>} />
             <Route path="/mechanization" element={<Suspense fallback={<Fallback />}><MechanizationPage /></Suspense>} />
+            <Route path="/reinforcement" element={<Suspense fallback={<Fallback />}><ReinforcementSectionsPage /></Suspense>} />
             <Route path="/reports" element={<Suspense fallback={<Fallback />}><ReportsPage /></Suspense>} />
             <Route path="/database" element={<Suspense fallback={<Fallback />}><DatabasePage /></Suspense>} />
             <Route path="/settings" element={<Suspense fallback={<Fallback />}><SettingsPage /></Suspense>} />

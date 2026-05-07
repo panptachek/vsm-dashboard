@@ -100,11 +100,6 @@ function formatPk(pk100: number): string {
   return `${sign}ПК${pk}+${plus.toFixed(2).padStart(5, '0')}`
 }
 
-function formatPkShort(pk100: number): string {
-  const pk = Math.floor(pk100 / 100)
-  return `ПК${pk}`
-}
-
 type Range = [number, number]
 
 function mergeRanges(ranges: Range[]): Range[] {

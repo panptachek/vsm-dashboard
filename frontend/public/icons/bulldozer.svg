@@ -1,22 +1,19 @@
-<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
-  <title id="title">Bulldozer / Бульдозер icon</title>
-  <desc id="desc">Minimal construction machinery SVG icon: Bulldozer / Бульдозер.</desc>
-  <style>
-  .main{fill:none;stroke:#111827;stroke-width:8;stroke-linecap:round;stroke-linejoin:round;}
-  .accent{fill:none;stroke:#C91F2E;stroke-width:8;stroke-linecap:round;stroke-linejoin:round;}
-  .soft{fill:#F3F4F6;stroke:#111827;stroke-width:8;stroke-linecap:round;stroke-linejoin:round;}
-</style>
-  
-  <path class="accent" d="M27 177h130"/>
-  <rect class="soft" x="34" y="158" width="130" height="40" rx="20"/>
-  <path class="main" d="M59 198h80"/>
-  <path class="soft" d="M63 116h84l24 42H49l14-42Z"/>
-  <path class="main" d="M104 116v42M147 116v42"/>
-  <path class="accent" d="M171 158h24"/>
-  <path class="soft" d="M195 135h36v74h-36c-13 0-23-10-23-23v-28c0-13 10-23 23-23Z"/>
-  <path class="main" d="M198 154v36"/>
-  <path class="main" d="M65 99h55"/>
-  <path class="accent" d="M40 116h26"/>
-
+  <title id="title">Bulldozer</title>
+  <desc id="desc">Industrial bulldozer silhouette with track base, cab and front blade.</desc>
+  <g fill="none" stroke="#1a1a1a" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+    <path fill="#f4f4f5" d="M42 151h131l18 19-18 19H42l-18-19z"/>
+    <path fill="#ffffff" d="M78 92h58l23 59H61z"/>
+    <path d="M92 92V61h45"/>
+    <path d="M99 106h31l14 35H85z"/>
+    <path fill="#e5e7eb" d="M190 138h40l-10 67h-49z"/>
+    <path d="M177 151h19"/>
+    <path d="M174 189h45"/>
+    <circle cx="58" cy="170" r="12" fill="#1a1a1a"/>
+    <circle cx="94" cy="170" r="12" fill="#1a1a1a"/>
+    <circle cx="130" cy="170" r="12" fill="#1a1a1a"/>
+    <path d="M47 151h118"/>
+    <path d="M47 189h118"/>
+  </g>
+  <path d="M65 132h91l7 19H57z" fill="#ca8a04"/>
 </svg>

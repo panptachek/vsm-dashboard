@@ -19,6 +19,7 @@ interface WorkTypeNorm {
   norm: number
   unit: string | null
   code: string | null
+  productivity_enabled: boolean
 }
 interface SandSectionNorm {
   section: number
@@ -47,6 +48,10 @@ const ALIAS_KIND_LABELS: Record<AliasRow['kind'], string> = {
   work_type: 'Работа',
   material: 'Материал',
   constructive: 'Конструктив',
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
 }
 
 // ── small UI helpers ──────────────────────────────────────────────────────
@@ -103,9 +108,9 @@ function WorkTypesTable({ rows, onSave, saving }: {
       if (da !== db) return da - db
       return (a.code || '').localeCompare(b.code || '')
     })
-  const [draft, setDraft] = useState<WorkTypeNorm[]>(() => sortRows(rows))
-  useEffect(() => { setDraft(sortRows(rows)) }, [rows])
-  const dirty = JSON.stringify(draft) !== JSON.stringify(sortRows(rows))
+  const sortedRows = sortRows(rows)
+  const [draft, setDraft] = useState<WorkTypeNorm[]>(() => sortedRows)
+  const dirty = JSON.stringify(draft) !== JSON.stringify(sortedRows)
 
   function update(i: number, patch: Partial<WorkTypeNorm>) {
     setDraft(prev => prev.map((r, idx) => idx === i ? { ...r, ...patch } : r))
@@ -121,6 +126,7 @@ function WorkTypesTable({ rows, onSave, saving }: {
               <th className="text-left py-2 px-2 font-semibold">Работа</th>
               <th className="text-left py-2 px-2 font-semibold">Ед.</th>
               <th className="text-right py-2 px-2 font-semibold">Норма, ед./смена</th>
+              <th className="text-center py-2 px-2 font-semibold">Учитывать</th>
             </tr>
           </thead>
           <tbody>
@@ -143,6 +149,15 @@ function WorkTypesTable({ rows, onSave, saving }: {
                     type="number" step="0.1" value={r.norm}
                     onChange={e => update(i, { norm: Number(e.target.value) })}
                     className="w-24 text-right font-mono text-[12px] border border-border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-accent-red"
+                  />
+                </td>
+                <td className="py-1.5 px-2 text-center">
+                  <input
+                    type="checkbox"
+                    checked={r.productivity_enabled !== false}
+                    onChange={e => update(i, { productivity_enabled: e.target.checked })}
+                    className="h-4 w-4 accent-red-700"
+                    title="Если выключено, факт этой работы не попадет в расчет производительности техники"
                   />
                 </td>
               </tr>
@@ -280,7 +295,7 @@ function AliasesBlock() {
       setErr(null)
       invalidate()
     },
-    onError: (e: any) => setErr(String(e?.message || e)),
+    onError: (e: unknown) => setErr(errorMessage(e)),
   })
 
   const patchMut = useMutation({
@@ -294,7 +309,7 @@ function AliasesBlock() {
       return r.json()
     },
     onSuccess: () => { setEditId(null); setEditDraft({}); invalidate() },
-    onError: (e: any) => setErr(String(e?.message || e)),
+    onError: (e: unknown) => setErr(errorMessage(e)),
   })
 
   const deleteMut = useMutation({
@@ -535,6 +550,7 @@ export default function SettingsPage() {
                     Экскаваторы / бульдозеры / автогрейдер / каток — по видам работ
                   </div>
                   <WorkTypesTable
+                    key={norms.work_types.map(r => `${r.equipment_type}:${r.work_type_code}:${r.norm}:${r.unit ?? ''}:${r.productivity_enabled}`).join('|')}
                     rows={norms.work_types}
                     saving={patchMut.isPending}
                     onSave={rows => patchMut.mutate({ work_types: rows })}

@@ -224,7 +224,7 @@ export function VsmMap({
       else next.add(key)
       return next
     })
-  }, [])
+  }, [setEnabledObjectTypes])
 
   // Data queries
   const {
@@ -349,6 +349,7 @@ export function VsmMap({
             pickets={pickets}
             sections={sections}
             activeSection={activeSection}
+            activeSections={enabledSectionCodes}
           />
         )}
 
